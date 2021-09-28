@@ -1,4 +1,4 @@
-LLVM_BUILD :=  ${CURDIR}/../Compiler/build/
+LLVM_BUILD :=  /opt/homebrew/opt/llvm/
 Dragon_DIR := ${CURDIR}/src
 Dragon_BUILD := ${CURDIR}/build
 
@@ -13,7 +13,7 @@ build_codedep_func = \
 			LLVM_INCLUDE_DIRS=${LLVM_BUILD}/include \
 			CC=gcc CXX=g++ \
             cmake ${1} -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_CXX_FLAGS_RELEASE="-fno-rtti -Ofast -fomit-frame-pointer -UNDEBUG_ENABLE -flto -free" \
+                -DCMAKE_CXX_FLAGS_RELEASE="-fno-rtti -Ofast -fomit-frame-pointer -UNDEBUG_ENABLE -flto -std=c++14" \
 		&& make -j${NPROC})
 
 all: codesummary

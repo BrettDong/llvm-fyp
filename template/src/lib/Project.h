@@ -5,7 +5,6 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/IR/Constants.h"
@@ -44,11 +43,9 @@
 #include <tuple>
 #include <thread>
 
-#include "json.hpp"
 
 using namespace llvm;
 using namespace std;
-using json = nlohmann::json;
 
 #define MAX_THREAD_NUM std::thread::hardware_concurrency()*2
 
