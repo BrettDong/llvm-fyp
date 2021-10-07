@@ -1,0 +1,121 @@
+@article{cfi2005,
+    author = {Abadi, Martin and Budiu, Mihai and Erlingsson, Ulfar and Ligatti, Jay}, title = {Control-Flow Integrity Principles, Implementations, and Applications}, year = {2009}, issue_date = {October 2009}, publisher = {Association for Computing Machinery}, address = {New York, NY, USA}, volume = {13}, number = {1}, issn = {1094-9224}, url = {https://doi.org/10.1145/1609956.1609960}, doi = {10.1145/1609956.1609960}, abstract = {Current software attacks often build on exploits that subvert machine-code execution. The enforcement of a basic safety property, control-flow integrity (CFI), can prevent such attacks from arbitrarily controlling program behavior. CFI enforcement is simple and its guarantees can be established formally, even with respect to powerful adversaries. Moreover, CFI enforcement is practical: It is compatible with existing software and can be done efficiently using software rewriting in commodity systems. Finally, CFI provides a useful foundation for enforcing further security policies, as we demonstrate with efficient software implementations of a protected shadow call stack and of access control for memory regions.}, journal = {ACM Trans. Inf. Syst. Secur.}, month = nov, articleno = {4}, numpages = {40}, keywords = {inlined reference monitors, Binary rewriting, vulnerabilities, control-flow graph}
+}
+
+@article{BurowNathan2017CIPS,
+    language = {eng},
+    address = {NEW YORK},
+    author = {Burow, Nathan and Carr, Scott and Nash, Joseph and Larsen, Per and Franz, Michael and Brunthaler, Stefan and Payer, Mathias},
+    keywords = {Computer Science ; Computer Science, Theory & Methods ; Computer software industry ; Control systems ; control-flow hijacking ; Control-flow integrity ; Ethical aspects ; Information management ; Research ; return-oriented programming ; Science & Technology ; shadow stack ; Technology ; Usage},
+    issn = {0360-0300},
+    abstract = {Memory corruption errors in C/C++ programs remain the most common source of security vulnerabilities in today's systems. Control-flow hijacking attacks exploit memory corruption vulnerabilities to divert program execution away from the intended control flow. Researchers have spent more than a decade studying and refining defenses based on Control-Flow Integrity (CFI); this technique is now integrated into several production compilers. However, so far, no study has systematically compared the various proposed CFI mechanisms nor is there any protocol on how to compare such mechanisms. We compare a broad range of CFI mechanisms using a unified nomenclature based on (i) a qualitative discussion of the conceptual security guarantees, (ii) a quantitative security evaluation, and (iii) an empirical evaluation of their performance in the same test environment. For each mechanism, we evaluate (i) protected types of control-flow transfers and (ii) precision of the protection for forward and backward edges. For open-source, compiler-based implementations, we also evaluate (iii) generated equivalence classes and target sets and (iv) runtime performance.},
+    journal = {ACM computing surveys},
+    pages = {1--33},
+    volume = {50},
+    publisher = {ACM},
+    number = {1},
+    year = {2017},
+    title = {Control-Flow Integrity: Precision, Security, and Performance},
+    copyright = {COPYRIGHT 2018 Association for Computing Machinery, Inc.},
+}
+
+@inproceedings{mlta,
+author = {Lu, Kangjie and Hu, Hong},
+title = {Where Does It Go? Refining Indirect-Call Targets with Multi-Layer Type Analysis},
+year = {2019},
+isbn = {9781450367479},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3319535.3354244},
+doi = {10.1145/3319535.3354244},
+booktitle = {Proceedings of the 2019 ACM SIGSAC Conference on Computer and Communications Security},
+pages = {1867–1881},
+numpages = {15},
+keywords = {indirect-call targets, cfi, function pointers, layered type analysis},
+location = {London, United Kingdom},
+series = {CCS '19}
+}
+
+@inproceedings{10.1145/2594291.2594295,
+author = {Niu, Ben and Tan, Gang},
+title = {Modular Control-Flow Integrity},
+year = {2014},
+isbn = {9781450327848},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/2594291.2594295},
+doi = {10.1145/2594291.2594295},
+abstract = {Control-Flow Integrity (CFI) is a software-hardening technique. It inlines checks
+into a program so that its execution always follows a predetermined Control-Flow Graph
+(CFG). As a result, CFI is effective at preventing control-flow hijacking attacks.
+However, past fine-grained CFI implementations do not support separate compilation,
+which hinders its adoption.We present Modular Control-Flow Integrity (MCFI), a new
+CFI technique that supports separate compilation. MCFI allows modules to be independently
+instrumented and linked statically or dynamically. The combined module enforces a
+CFG that is a combination of the individual modules' CFGs. One challenge in supporting
+dynamic linking in multithreaded code is how to ensure a safe transition from the
+old CFG to the new CFG when libraries are dynamically linked. The key technique we
+use is to have the CFG represented in a runtime data structure and have reads and
+updates of the data structure wrapped in transactions to ensure thread safety. Our
+evaluation on SPECCPU2006 benchmarks shows that MCFI supports separate compilation,
+incurs low overhead of around 5%, and enhances security.},
+booktitle = {Proceedings of the 35th ACM SIGPLAN Conference on Programming Language Design and Implementation},
+pages = {577–587},
+numpages = {11},
+keywords = {separate compilation, control-flow integrity, modularity},
+location = {Edinburgh, United Kingdom},
+series = {PLDI '14}
+}
+
+@article{modular-cfi,
+author = {Niu, Ben and Tan, Gang},
+title = {Modular Control-Flow Integrity},
+year = {2014},
+issue_date = {June 2014},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {49},
+number = {6},
+issn = {0362-1340},
+url = {https://doi.org/10.1145/2666356.2594295},
+doi = {10.1145/2666356.2594295},
+journal = {SIGPLAN Not.},
+month = jun,
+pages = {577–587},
+numpages = {11},
+keywords = {control-flow integrity, separate compilation, modularity}
+}
+
+@online{llvm-website,
+    title = "The LLVM Compiler Infrastructure Project",
+    url = "https://llvm.org"
+}
+
+@online{llvm-ir,
+    title = "Mapping High Level Constructs to LLVM IR",
+    url = "https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/en/latest/a-quick-primer/index.html"
+}
+
+@online{llvm-pass,
+    title = "Writing an LLVM Pass",
+    url = "https://llvm.org/docs/WritingAnLLVMNewPMPass.html"
+}
+
+@online{llvm-pipeline,
+    title = "GraalVM's secret LLVM backend",
+    url = "https://www.praj.in/posts/2020/graalvms-secret-llvm-backend/",
+    author = "Priyadarshi Raj"
+}
+
+@online{nebelwelt,
+    author = "Mathias Payer",
+    title = "Control-Flow Integrity: An Introduction",
+    url = "https://nebelwelt.net/blog/20160913-ControlFlowIntegrity.html",
+    addendum = "(Published: Tue 13 September 2016)"
+}
+
+@online{chromium-loc,
+    author = "Synopsys OpenHub",
+    title = "The Chromium Open Source Project",
+    url = "https://www.openhub.net/p/chrome/analyses/latest/languages_summary"
+}
