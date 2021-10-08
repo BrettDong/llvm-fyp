@@ -1,0 +1,21 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+      - name: Install LLVM
+        run: |
+          sudo apt update
+          sudo apt install llvm-12
+      - name: Build
+        run: |
+          cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
+          cmake --build build
