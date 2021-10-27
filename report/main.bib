@@ -86,6 +86,99 @@ numpages = {11},
 keywords = {control-flow integrity, separate compilation, modularity}
 }
 
+@INPROCEEDINGS{cfg-extract,  author={Atkinson, D.C.},  booktitle={11th Asia-Pacific Software Engineering Conference},   title={Accurate call graph extraction of programs with function pointers using type signatures},   year={2004},  volume={},  number={},  pages={326-335},  doi={10.1109/APSEC.2004.16}}
+
+@inproceedings{hind2001pointer,
+	title="Pointer analysis: haven't we solved this problem yet?",
+	author="Michael {Hind}",
+	booktitle="Proceedings of the 2001 ACM SIGPLAN-SIGSOFT workshop on Program analysis for software tools and engineering",
+	pages="54--61",
+	year="2001"
+}
+
+@article{undecidability-of-aliasing,
+author = {Ramalingam, G.},
+title = {The Undecidability of Aliasing},
+year = {1994},
+issue_date = {Sept. 1994},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {16},
+number = {5},
+issn = {0164-0925},
+url = {https://doi.org/10.1145/186025.186041},
+doi = {10.1145/186025.186041},
+journal = {ACM Trans. Program. Lang. Syst.},
+month = sep,
+pages = {1467–1471},
+numpages = {5},
+keywords = {alias analysis, pointer analysis}
+}
+
+@article{undecidability-of-static-analysis,
+author = {Landi, William},
+title = {Undecidability of Static Analysis},
+year = {1992},
+issue_date = {Dec. 1992},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {1},
+number = {4},
+issn = {1057-4514},
+url = {https://doi.org/10.1145/161494.161501},
+doi = {10.1145/161494.161501},
+journal = {ACM Lett. Program. Lang. Syst.},
+month = dec,
+pages = {323–337},
+numpages = {15},
+keywords = {static analysis, abstract interpretation, alias analysis, data flow analysis, halting problem}
+}
+
+@inproceedings{effectiveness-type-cfi,
+author = {Farkhani, Reza Mirzazade and Jafari, Saman and Arshad, Sajjad and Robertson, William and Kirda, Engin and Okhravi, Hamed},
+title = {On the Effectiveness of Type-Based Control Flow Integrity},
+year = {2018},
+isbn = {9781450365697},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3274694.3274739},
+doi = {10.1145/3274694.3274739},
+booktitle = {Proceedings of the 34th Annual Computer Security Applications Conference},
+pages = {28–39},
+numpages = {12},
+location = {San Juan, PR, USA},
+series = {ACSAC '18}
+}
+
+@inproceedings{jujutsu,
+author = {Evans, Isaac and Long, Fan and Otgonbaatar, Ulziibayar and Shrobe, Howard and Rinard, Martin and Okhravi, Hamed and Sidiroglou-Douskos, Stelios},
+title = {Control Jujutsu: On the Weaknesses of Fine-Grained Control Flow Integrity},
+year = {2015},
+isbn = {9781450338325},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/2810103.2813646},
+doi = {10.1145/2810103.2813646},
+pages = {901–913},
+numpages = {13},
+keywords = {memory corruption, control flow integrity, return-oriented programming, code reuse},
+location = {Denver, Colorado, USA},
+series = {CCS '15}
+}
+
+@inproceedings {ifcc,
+author = {Caroline Tice and Tom Roeder and Peter Collingbourne and Stephen Checkoway and {\'U}lfar Erlingsson and Luis Lozano and Geoff Pike},
+title = {Enforcing Forward-Edge Control-Flow Integrity in {GCC} \& {LLVM}},
+booktitle = {23rd {USENIX} Security Symposium ({USENIX} Security 14)},
+year = {2014},
+isbn = {978-1-931971-15-7},
+address = {San Diego, CA},
+pages = {941--955},
+url = {https://www.usenix.org/conference/usenixsecurity14/technical-sessions/presentation/tice},
+publisher = {{USENIX} Association},
+month = aug,
+}
+
 @online{llvm-website,
     title = "The LLVM Compiler Infrastructure Project",
     url = "https://llvm.org"
@@ -94,11 +187,6 @@ keywords = {control-flow integrity, separate compilation, modularity}
 @online{llvm-ir,
     title = "Mapping High Level Constructs to LLVM IR",
     url = "https://mapping-high-level-constructs-to-llvm-ir.readthedocs.io/en/latest/a-quick-primer/index.html"
-}
-
-@online{llvm-pass,
-    title = "Writing an LLVM Pass",
-    url = "https://llvm.org/docs/WritingAnLLVMNewPMPass.html"
 }
 
 @online{llvm-pipeline,
@@ -118,4 +206,21 @@ keywords = {control-flow integrity, separate compilation, modularity}
     author = "Synopsys OpenHub",
     title = "The Chromium Open Source Project",
     url = "https://www.openhub.net/p/chrome/analyses/latest/languages_summary"
+}
+
+@online{name-mangling,
+    author = "Wikipedia",
+    title = "Name mangling",
+    url = "https://en.wikipedia.org/wiki/Name_mangling#C++"
+}
+
+@online{vtable,
+    author = "Shahar",
+    title = "C++ vtables - Part 1 - Basics",
+    url = "https://shaharmike.com/cpp/vtable-part1"
+}
+
+@online{type-metadata,
+    title = "LLVM Type Metadata",
+    url = "https://llvm.org/docs/TypeMetadata.html"
 }

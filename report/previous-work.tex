@@ -1,0 +1,65 @@
+\chapter{Previous Work}
+\label{chapter:previous-work}
+
+Two categories of current existing approaches in identifying targets of indirect function calls, namely Pointer Analysis and Type Analysis, are introduced in section \ref{section:pointer-analysis} and section \ref{section:type-analysis}. A novel method called Multi-Layer Type Analysis is then introduced in section \ref{section:mlta}.
+
+\section{Pointer Analysis}
+\label{section:pointer-analysis}
+
+Pointer analysis, also called points-to analysis, attempts to compute the set of memory addresses that a pointer may possibly point to, by the means of static analysis  \cite{hind2001pointer}. With this information available, control-flow graphs at function pointer indirect calls can be constructed by extending forward edges to all functions that the pointer may point to, and also generating backward edges that represents return operations.
+
+However, studies show that perfectly precise pointer analysis is in general undecidable \cite{undecidability-of-aliasing} \cite{undecidability-of-static-analysis} , meaning that it is not feasible to accurately determine the exact set of memory addresses a pointer may point to without any omission nor over-approximation.
+
+Therefore, in order for pointer analysis to be practical, precision has to be sacrificed in favor of reasonable analysis time efficiency \cite{jujutsu}. There are a number of approximation algorithms offering various trade-offs between accuracy and time efficiency, with worst case time complexities ranging from linear to exponential \cite{hind2001pointer}. But it has been demonstrated that the imprecision due to conservative over-approximation can lead to successful security exploit even when \ac{cfi} is enforced \cite{jujutsu}, which severely undermines the effectiveness of \ac{cfi}.
+
+\section{Type Analysis}
+\label{section:type-analysis}
+
+The basic idea of type analysis is filtering the set of possible call targets of a function pointer indirect call by function type information. Functions with the same type as the function pointer are considered possible call targets.
+
+Niu and Tan \cite{modular-cfi} propose control-flow graph construction with type analysis, and they implement their approach in a modified LLVM compiler. Auxiliary type information of functions and function pointers is annotated to intermediate representation of compilation units along with code and data. When generating control-flow graphs at a function pointer indirect call, forward edges are extended to functions with the same type.
+
+A simplified variant of type analysis is implemented in LLVM compiler \cite{ifcc}, called ``Indirect Function Call Check (IFCC)''. It analyzes LLVM IR during \ac{lto} stage of compilation. Instead of checking function types, it only checks whether the number of parameters of a function matches with the function pointer. This is relatively easier to implement and has less performance impact.
+
+A down side of this approach is potentially large amount of false positives. Functions which are never called in the normal execution path are also reported, only because they have the same type. This problem is called type collision.  Farkhani et al. \cite{effectiveness-type-cfi} shows that type collision is fairly common in real-world large applications, and could be exploited by a malicious adversary to attack the program.
+
+\section{Multi-Layer Type Analysis}
+\label{section:mlta}
+
+Lu and Hu \cite{mlta} propose a novel approach in function pointers target analysis called Multi-Layer Type Analysis on the 26-th ACM Conference on Computer and Communications Security in 2019.
+
+This approach attempts to improve the accuracy of resolving indirect call target functions by looking into the multi-layer type hierarchy information of the chain of \texttt{struct}s or \texttt{class}s in which the function pointer is stored.
+
+\begin{figure}[hb]
+    \centering
+    \begin{lstlisting}[language=c]
+// Defines function pointer type
+typedef int (*fptr_t)(int, int);
+
+// Defines two functions of the type
+int funcB(int a, int b) { return a + b; }
+int funcC(int a, int b) { return a * b; }
+
+// Defines three structs
+struct A { fptr_t p; };
+struct B { struct A a; };
+struct C { struct A a; };
+
+// Defines two instances of structs
+struct B b = { .a = { .p = &funcB } };
+struct C c = { .a = { .p = &funcC } };
+
+int main() { return c.a.p(2, 3); }
+    \end{lstlisting}
+    \caption{Code example of Multi-Layer Type Analysis}
+    \label{fig:mlta}
+\end{figure}
+
+In a simplified example illustrated in Figure \ref{fig:mlta}, for the indirect call \texttt{c.a.p()} in \texttt{main()} function, the function pointer \texttt{p} is stored in a \texttt{struct} of type \texttt{A}, which is in turn stored in a parent \texttt{struct} of type \texttt{C}. Then the scope of possible target functions for this indirect call is limited to those functions whose address are stored to pointers with the same multi-layer type hierarchy information, that is, function pointers that are also stored in a \texttt{struct} of type \texttt{A} in a parent \texttt{struct} of type \texttt{C}. In the example in Figure \ref{fig:mlta}, the only function satisfying such condition is \texttt{funcC}, since its address is stored to a \texttt{struct} of type \texttt{A} in a parent \texttt{struct} of type \texttt{C} at line 15. Although funciton \texttt{funcB} also has the same function type (taking two \texttt{int} parameters and returns an \texttt{int} value), the address of \texttt{funcB} is never assigned to a \texttt{struct} of type \texttt{A} in a parent \texttt{struct} of type \texttt{C}.
+
+This approach is based on the intuition that in practical software development, function pointers are often stored in multi-layer objects of objects \cite{mlta}, and this is indeed effective in field test. The authors evaluate their technique on three real-world system programs, Linux, FreeBSD and Firefox, and observed 86\% to 98\% reduction in the target functions reported for indirect calls \cite{mlta}.
+
+\section{Summary}
+\label{section:previous-work-summary}
+
+This chapter presents an overview of two categories of current existing approaches in resolving targets of indirect function calls, and a newly proposed approach as well. In the next chapter, methodology applied in the project is discussed.
