@@ -59,7 +59,7 @@ void IterativeModulePass::run(ModuleList &modules) {
     OP << "[" << ID << "] Done!\n\n";
 }
 
-//cl::opt<unsigned> VerboseLevel;
+// cl::opt<unsigned> VerboseLevel;
 map<Type *, string> TypeToTNameMap;
 
 size_t funcHash(Function *F, bool withName = true) {
@@ -74,13 +74,13 @@ size_t funcHash(Function *F, bool withName = true) {
         output = output + to_string(uint_hash(SP->getLine()));
     } else {
 #endif
-    string sig;
-    raw_string_ostream rso(sig);
-    Type *FTy = F->getFunctionType();
-    FTy->print(rso);
-    output = rso.str();
+        string sig;
+        raw_string_ostream rso(sig);
+        Type *FTy = F->getFunctionType();
+        FTy->print(rso);
+        output = rso.str();
 
-    if (withName) output += F->getName();
+        if (withName) output += F->getName();
 #ifdef HASH_SOURCE_INFO
     }
 #endif
@@ -177,12 +177,12 @@ void CallGraphPass::findCalleesWithType(CallInst *CI, FuncSet &S) {
     //
     // TODO: performance improvement: cache results for types
     //
-    for (Function *F: Ctx->AddressTakenFuncs) {
+    for (Function *F : Ctx->AddressTakenFuncs) {
         // VarArg
         if (F->getFunctionType()->isVarArg()) {
             // Compare only known args in VarArg.
         }
-            // otherwise, the numbers of args should be equal.
+        // otherwise, the numbers of args should be equal.
         else if (F->arg_size() != CI->arg_size()) {
             continue;
         }
@@ -262,14 +262,14 @@ void CallGraphPass::unrollLoops(Function *F) {
             LP = LPL.front();
             LPL.pop_front();
             vector<Loop *> SubLPs = LP->getSubLoops();
-            for (auto SubLP: SubLPs) {
+            for (auto SubLP : SubLPs) {
                 LPSet.insert(SubLP);
                 LPL.push_back(SubLP);
             }
         }
     }
 
-    for (Loop *LP: LPSet) {
+    for (Loop *LP : LPSet) {
         // Get the header,latch block, exiting block of every loop
         BasicBlock *HeaderB = LP->getHeader();
 
@@ -278,7 +278,7 @@ void CallGraphPass::unrollLoops(Function *F) {
 
         LP->getLoopLatches(LatchBS);
 
-        for (BasicBlock *LatchB: LatchBS) {
+        for (BasicBlock *LatchB : LatchBS) {
             if (!HeaderB || !LatchB) {
                 OP << "ERROR: Cannot find Header Block or Latch Block\n";
                 continue;
@@ -310,7 +310,7 @@ void CallGraphPass::unrollLoops(Function *F) {
                     }
                 }
             }
-                // Case 2:
+            // Case 2:
             else {
                 for (succ_iterator sit = succ_begin(LatchB); sit != succ_end(LatchB); ++sit) {
                     BasicBlock *SuccB = *sit;
@@ -353,8 +353,8 @@ bool CallGraphPass::typeConfineInInitializer(User *Ini) {
                 unsigned ONo = oi->getOperandNo();
                 typeFuncsMap[typeIdxHash(ITy, ONo)].insert(F);
             }
-                // Case 2: a composite-type object (value) is assigned to a
-                // field of another composite-type object
+            // Case 2: a composite-type object (value) is assigned to a
+            // field of another composite-type object
             else if (isCompositeType(OTy)) {
                 // confine composite types
                 Type *ITy = U->getType();
@@ -365,9 +365,9 @@ bool CallGraphPass::typeConfineInInitializer(User *Ini) {
                 User *OU = dyn_cast<User>(O);
                 LU.push_back(OU);
             }
-                // Case 3: a reference (i.e., pointer) of a composite-type
-                // object is assigned to a field of another composite-type
-                // object
+            // Case 3: a reference (i.e., pointer) of a composite-type
+            // object is assigned to a field of another composite-type
+            // object
             else if (PointerType *POTy = dyn_cast<PointerType>(OTy)) {
                 if (isa<ConstantPointerNull>(O)) continue;
                 // if the pointer points a composite type, skip it as
@@ -487,7 +487,7 @@ void CallGraphPass::transitType(Type *ToTy, Type *FromTy, int ToIdx, int FromIdx
 
 void CallGraphPass::funcSetIntersection(FuncSet &FS1, FuncSet &FS2, FuncSet &FS) {
     FS.clear();
-    for (auto F: FS1) {
+    for (auto F : FS1) {
         if (FS2.find(F) != FS2.end()) FS.insert(F);
     }
 }
@@ -511,12 +511,12 @@ Value *CallGraphPass::nextLayerBaseType(Value *V, Type *&BTy, int &Idx, const Da
         } else
             return NULL;
     }
-        // Case 2: LoadInst
+    // Case 2: LoadInst
     else if (LoadInst *LI = dyn_cast<LoadInst>(V)) {
         return nextLayerBaseType(LI->getOperand(0), BTy, Idx, _DL);
     }
-        // Other instructions such as CastInst
-        // FIXME: may introduce false positives
+    // Other instructions such as CastInst
+    // FIXME: may introduce false positives
 #if 1
     else if (UnaryInstruction *UI = dyn_cast<UnaryInstruction>(V)) {
         return nextLayerBaseType(UI->getOperand(0), BTy, Idx, _DL);
@@ -573,7 +573,7 @@ bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
             unsigned CT = LT.front();
             LT.pop_front();
 
-            for (auto H: typeTransitMap[CT]) {
+            for (auto H : typeTransitMap[CT]) {
                 FS2 = typeFuncsMap[hashIdxHash(H, FieldIdx)];
                 FST.clear();
                 funcSetIntersection(FS1, FS2, FST);
@@ -621,7 +621,7 @@ bool CallGraphPass::doInitialization(Module *M) {
     }
 
     // Iterate functions and instructions
-    for (Function &F: *M) {
+    for (Function &F : *M) {
         // if (F.empty())
         //	continue;
         if (F.isDeclaration()) continue;
@@ -679,7 +679,7 @@ bool CallGraphPass::doModulePass(Module *M) {
         // FIXME: No redundant function?
         if (Ctx->UnifiedFuncSet.find(F) == Ctx->UnifiedFuncSet.end()) continue;
 
-        // Unroll loops
+            // Unroll loops
 #ifdef UNROLL_LOOP_ONCE
         unrollLoops(F);
 #endif
@@ -699,12 +699,12 @@ bool CallGraphPass::doModulePass(Module *M) {
                     findCalleesWithType(CI, FS);
 #endif
 
-                    for (Function *Callee: FS) Ctx->Callers[Callee].insert(CI);
+                    for (Function *Callee : FS) Ctx->Callers[Callee].insert(CI);
 
                     // Save called values for future uses.
                     Ctx->IndirectCallInsts.push_back(CI);
                 }
-                    // Direct call
+                // Direct call
                 else {
                     // not InlineAsm
                     if (CF) {
@@ -723,7 +723,7 @@ bool CallGraphPass::doModulePass(Module *M) {
                             Ctx->Callers[CF].insert(CI);
                         }
                     }
-                        // InlineAsm
+                    // InlineAsm
                     else {
                     }
                 }

@@ -1,20 +1,18 @@
 #include <filesystem>
 
 #include "Common.hpp"
-
 #include "mlta/CallGraph.h"
 
-static cl::opt<std::string> BitcodeFilesDir(cl::Positional,
-                                            cl::desc("[The directory that contains bitcode files.]"),
-                                            cl::Required);
+static cl::opt<std::string> BitcodeFilesDir(
+    cl::Positional, cl::desc("[The directory that contains bitcode files.]"), cl::Required);
 
 void disassembleModule(Module *module) {
     ModuleSlotTracker moduleSlotTracker(module);
-    for (const Function &f: module->getFunctionList()) {
+    for (const Function &f : module->getFunctionList()) {
         outs() << "    Function: " << demangle(f.getName().str()) << "\n";
         moduleSlotTracker.incorporateFunction(f);
-        for (const BasicBlock &block: f.getBasicBlockList()) {
-            for (const Instruction &inst: block.getInstList()) {
+        for (const BasicBlock &block : f.getBasicBlockList()) {
+            for (const Instruction &inst : block.getInstList()) {
                 outs() << "        ";
                 if (inst.hasName()) {
                     outs() << inst.getName() << " = ";
@@ -47,12 +45,13 @@ int main(int argc, char **argv) {
 
     GlobalContext globalCtx;
 
-    for (const auto &it: filesystem::recursive_directory_iterator(BitcodeFilesDir.getValue())) {
+    for (const auto &it : filesystem::recursive_directory_iterator(BitcodeFilesDir.getValue())) {
         if (it.path().extension() == ".bc") {
             outs() << "Reading bitcode file: " << it.path() << "\n";
             unique_ptr<Module> module = parseIRFile(it.path().string(), err, *llvmContext);
             if (!module) {
-                errs() << "Error loading bitcode file \"" << it.path() << "\": " << err.getMessage() << "\n";
+                errs() << "Error loading bitcode file \"" << it.path() << "\": " << err.getMessage()
+                       << "\n";
                 continue;
             }
             Module *m = module.release();
@@ -65,12 +64,13 @@ int main(int argc, char **argv) {
     CallGraphPass CGPass(&globalCtx);
     CGPass.run(globalCtx.Modules);
 
-    for (const auto &callee: globalCtx.Callers) {
-        outs() << "Callee: " << callee.first->getName() << " has " << callee.second.size() << " callers identified \n";
-        for (const auto caller: callee.second) {
+    for (const auto &callee : globalCtx.Callers) {
+        outs() << "Callee: " << callee.first->getName() << " has " << callee.second.size()
+               << " callers identified \n";
+        for (const auto caller : callee.second) {
             outs() << "    called from " << caller->getFunction()->getName();
-            if (find(globalCtx.IndirectCallInsts.begin(), globalCtx.IndirectCallInsts.end(), caller) !=
-                globalCtx.IndirectCallInsts.end()) {
+            if (find(globalCtx.IndirectCallInsts.begin(), globalCtx.IndirectCallInsts.end(),
+                     caller) != globalCtx.IndirectCallInsts.end()) {
                 outs() << " <= is an indirect call";
             }
             outs() << '\n';

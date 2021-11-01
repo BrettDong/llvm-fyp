@@ -4,7 +4,7 @@
 
 #define MLTA_FOR_INDIRECT_CALL 1
 
-//extern cl::opt<unsigned> VerboseLevel;
+// extern cl::opt<unsigned> VerboseLevel;
 extern map<Type *, string> TypeToTNameMap;
 extern const DataLayout *CurrentLayout;
 
@@ -34,9 +34,8 @@ typedef unordered_map<Function *, PointerAnalysisMap> FuncPointerAnalysisMap;
 typedef unordered_map<Function *, AAResults *> FuncAAResultsMap;
 typedef map<Type *, string> TypeNameMap;
 
-
 class SecurityCheck {
-public:
+   public:
     SecurityCheck(Value *sk, Value *br) : SCheck(sk), SCBranch(br) {
         auto I = dyn_cast<Instruction>(SCheck);
         if (!I) return;
@@ -65,7 +64,7 @@ public:
         return (SC1.SCheck < SC2.SCheck);
     }
 
-private:
+   private:
     Value *SCheck;         /* Security check of this critical variable */
     Value *SCBranch;       /* Branch associated to the check */
     string SCheckFileName; /* Source file name of security check */
@@ -119,7 +118,7 @@ struct GlobalContext {
 
     // Identified sanity checks
     DenseMap<Function *, set<SecurityCheck>> SecurityCheckSets;
-    DenseMap<Function *, set<Value * >> CheckInstSets;
+    DenseMap<Function *, set<Value *>> CheckInstSets;
 
     // Pointer analysis results.
     FuncPointerAnalysisMap FuncPAResults;
@@ -129,11 +128,11 @@ struct GlobalContext {
 };
 
 class IterativeModulePass {
-protected:
+   protected:
     GlobalContext *Ctx;
     const char *ID;
 
-public:
+   public:
     IterativeModulePass(GlobalContext *Ctx_, const char *ID_) : Ctx(Ctx_), ID(ID_) {}
 
     // Run on each module before iterative pass.
@@ -149,7 +148,7 @@ public:
 };
 
 class CallGraphPass : public IterativeModulePass {
-private:
+   private:
     const DataLayout *DL;
     // char * or void *
     Type *Int8PtrTy;
@@ -178,7 +177,7 @@ private:
     void funcSetIntersection(FuncSet &FS1, FuncSet &FS2, FuncSet &FS);
     bool findCalleesWithMLTA(CallInst *CI, FuncSet &FS);
 
-public:
+   public:
     CallGraphPass(GlobalContext *Ctx_) : IterativeModulePass(Ctx_, "CallGraph") {}
 
     virtual bool doInitialization(llvm::Module *);
