@@ -2,8 +2,6 @@
 #ifndef CALL_GRAPH_H
 #define CALL_GRAPH_H
 
-#include <llvm/Analysis/AliasAnalysis.h>
-
 #define MLTA_FOR_INDIRECT_CALL 1
 
 //extern cl::opt<unsigned> VerboseLevel;

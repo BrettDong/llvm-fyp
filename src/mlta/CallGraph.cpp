@@ -12,36 +12,6 @@
 
 #include "CallGraph.h"
 
-#include <llvm/ADT/StringExtras.h>
-#include <llvm/Analysis/CallGraph.h>
-#include <llvm/IR/Constants.h>
-#include <llvm/IR/DebugInfo.h>
-#include <llvm/IR/InstIterator.h>
-#include <llvm/IR/Instructions.h>
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/IR/Module.h>
-#include <llvm/Pass.h>
-#include <llvm/Support/Debug.h>
-
-#include <map>
-#include <vector>
-#include <unordered_set>
-
-#include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/LoopPass.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/IR/CFG.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/InstrTypes.h"
-#include "llvm/IR/Instruction.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
-
-using namespace llvm;
-using namespace std;
-
-
 void IterativeModulePass::run(ModuleList &modules) {
     ModuleList::iterator i, e;
     OP << "[" << ID << "] Initializing " << modules.size() << " modules ";
