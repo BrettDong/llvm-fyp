@@ -17,5 +17,8 @@ jobs:
           sudo apt install llvm-12
       - name: Build
         run: |
-          cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
+          cmake -S . -B build -D CMAKE_BUILD_TYPE=Release -D SANITIZERS=ON
           cmake --build build
+      - name: Run
+        run: |
+          ./build/src/Analyzer ./sample-programs/pure-c
