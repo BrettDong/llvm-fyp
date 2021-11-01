@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
                 continue;
             }
             Module *m = module.release();
-            StringRef name(strdup(it.path().filename().c_str()));
+            string name = it.path().filename().string();
             globalCtx.Modules.emplace_back(m, name);
             globalCtx.ModuleMaps[m] = name;
         }

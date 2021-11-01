@@ -18,9 +18,9 @@ extern const DataLayout *CurrentLayout;
 //
 // typedefs
 //
-typedef vector<pair<llvm::Module *, llvm::StringRef>> ModuleList;
+typedef vector<pair<llvm::Module *, string>> ModuleList;
 // Mapping module to its file name.
-typedef unordered_map<llvm::Module *, llvm::StringRef> ModuleNameMap;
+typedef unordered_map<llvm::Module *, string> ModuleNameMap;
 // The set of all functions.
 typedef llvm::SmallPtrSet<llvm::Function *, 8> FuncSet;
 // Mapping from function name to function.
