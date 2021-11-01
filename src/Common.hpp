@@ -2,8 +2,6 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
 
-#include <dirent.h>
-
 #include <fstream>
 #include <set>
 #include <sstream>

@@ -1,7 +1,8 @@
 set(SOURCE
-        Common.h
-        Main.h
+        Common.hpp
         Main.cpp
+        mlta/CallGraph.h
+        mlta/CallGraph.cpp
         )
 
 add_executable(Analyzer ${SOURCE})
@@ -10,6 +11,7 @@ target_compile_options(Analyzer PRIVATE -fPIC)
 target_compile_options(Analyzer PRIVATE -Werror)
 set_target_properties(Analyzer PROPERTIES CXX_STANDARD 17)
 set_target_properties(Analyzer PROPERTIES CXX_STANDARD_REQUIRED ON)
+target_precompile_headers(Analyzer PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/Common.hpp>")
 
 target_link_libraries(Analyzer
         LLVMAsmParser
