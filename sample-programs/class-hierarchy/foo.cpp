@@ -11,14 +11,19 @@ class Square : public Shape {
 
 double Square::Area(double x) { return x * x; }
 
-double foo(double x) {
-    Shape *shape;
+class Circle : public Shape {
+   public:
+    double Area(double x) override;
+};
+
+double Circle::Area(double x) { return 3.1415926 * x * x; }
+
+double foo(Shape *shape, double x) {
     double answer = shape->Area(x);
     return answer;
 }
 
-double goo(double x) {
-    Square *shape;
+double goo(Square *shape, double x) {
     double answer = shape->Area(x);
     return answer;
 }
