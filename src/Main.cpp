@@ -1,7 +1,6 @@
 #include <filesystem>
 
 #include "Common.hpp"
-#include "mlta/CallGraph.h"
 
 static cl::opt<std::string> BitcodeFilesDir(
     cl::Positional, cl::desc("[The directory that contains bitcode files.]"), cl::Required);
@@ -33,6 +32,46 @@ void disassembleModule(Module *module) {
     }
 }
 
+void analyzeModule(Module *module) {
+    for (const GlobalVariable &global : module->getGlobalList()) {
+        const std::string name = demangle(global.getName().str());
+        outs() << "Global: " << name << " has type " << *(global.getValueType()) << "\n";
+        if (global.hasInitializer()) {
+            const Constant *constant = global.getInitializer();
+            if (name.find("vtable for ") != std::string::npos ||
+                name.find("typeinfo for ") != std::string::npos) {
+                if (const ConstantAggregate *aggregate = dyn_cast<ConstantAggregate>(constant)) {
+                    const unsigned int n = aggregate->getNumOperands();
+                    for (unsigned int i = 0; i < n; i++) {
+                        const Constant *element = aggregate->getAggregateElement(i);
+                        if (const ConstantAggregate *inner = dyn_cast<ConstantAggregate>(element)) {
+                            const unsigned int m = inner->getNumOperands();
+                            for (unsigned int j = 0; j < m; j++) {
+                                const Constant *innerElement = inner->getAggregateElement(j);
+                                outs() << *(innerElement->getType()) << ", ";
+                            }
+                        } else if (const ConstantExpr *expr = dyn_cast<ConstantExpr>(element)) {
+                            outs() << *(expr->getType()) << ", ";
+                        } else if (const ConstantInt *integer = dyn_cast<ConstantInt>(element)) {
+                            outs() << *(integer->getType()) << ", ";
+                        }
+                    }
+                }
+            } else if (name.find("typeinfo name for ") != std::string::npos) {
+                if (const ConstantDataArray *data = dyn_cast<ConstantDataArray>(constant)) {
+                    const unsigned int n = data->getNumElements();
+                    for (unsigned int i = 0; i < n; i++) {
+                        char ch = static_cast<char>(data->getElementAsInteger(i));
+                        if (ch == '\0') break;
+                        outs() << ch;
+                    }
+                }
+            }
+            outs() << "\n";
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     cl::ParseCommandLineOptions(argc, argv, "Analyzer\n");
     if (!filesystem::is_directory(BitcodeFilesDir.getValue())) {
@@ -43,14 +82,8 @@ int main(int argc, char **argv) {
     unique_ptr<LLVMContext> llvmContext = make_unique<LLVMContext>();
     SMDiagnostic err;
 
-    GlobalContext globalCtx;
-    globalCtx.csvout.open("analyzer.csv", ios::trunc);
-
-    vector<string> bitcodeFiles;
-
     for (const auto &it : filesystem::recursive_directory_iterator(BitcodeFilesDir.getValue())) {
         if (it.path().extension() == ".bc") {
-            bitcodeFiles.push_back(it.path());
             outs() << "Reading bitcode file: " << it.path() << "\n";
             unique_ptr<Module> module = parseIRFile(it.path().string(), err, *llvmContext);
             if (!module) {
@@ -58,30 +91,9 @@ int main(int argc, char **argv) {
                        << "\n";
                 continue;
             }
-            Module *m = module.release();
-            string name = it.path().filename().string();
-            globalCtx.Modules.emplace_back(m, name);
+            analyzeModule(module.get());
         }
     }
 
-    CallGraphPass CGPass(&globalCtx);
-    CGPass.run(globalCtx.Modules);
-
-    for (const string &bitcodeFile : bitcodeFiles) {
-        CGPass.resolveVirtualCallTargets(bitcodeFile);
-    }
-
-    //    for (const auto &callee : globalCtx.Callers) {
-    //        outs() << "Callee: " << demangle(callee.first->getName().str()) << " has "
-    //               << callee.second.size() << " callers identified \n";
-    //        for (const auto caller : callee.second) {
-    //            outs() << "    called from " << demangle(caller->getFunction()->getName().str());
-    //            if (find(globalCtx.IndirectCallInsts.begin(), globalCtx.IndirectCallInsts.end(),
-    //                     caller) != globalCtx.IndirectCallInsts.end()) {
-    //                outs() << " <= is an indirect call";
-    //            }
-    //            outs() << '\n';
-    //        }
-    //    }
     return 0;
 }
