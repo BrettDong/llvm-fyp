@@ -94,11 +94,7 @@ class VirtualCallTargets : public llvm::AnalysisInfoMixin<VirtualCallTargets> {
     // the indirect virtual call.
     struct VirtualCallSite {
         llvm::Value *VTable;
-#if __clang_major__ <= 10
-        llvm::CallSite Call;
-#else
         llvm::CallBase &Call;
-#endif
     };
 
     class VTableSlotEqual {
@@ -167,12 +163,7 @@ void VirtualCallTargets::scanTypeTestUsers(Function *TypeTestFunc) {
             continue;
         }
         for (const auto &Call : DevirtCalls) {
-            CallSlots[{TypeId, Call.Offset}].push_back(
-#if __clang_major__ <= 10
-                {CI->getArgOperand(0), Call.CS});
-#else
-                {CI->getArgOperand(0), Call.CB});
-#endif
+            CallSlots[{TypeId, Call.Offset}].push_back({CI->getArgOperand(0), Call.CB});
         }
     }
 }
@@ -244,11 +235,7 @@ void VirtualCallTargets::updateResults(
             candidates.insert(slot.Fn);
         }
 
-#if __clang_major__ <= 10
-        Instruction *I = cs.Call.getInstruction();
-#else
         Instruction *I = &cs.Call;
-#endif
 
         if (auto *CI = dyn_cast<CallInst>(I)) {
             m_results.addVirtualCallCandidates(CI, move(candidates));
