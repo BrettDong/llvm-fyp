@@ -1,8 +1,14 @@
 set(SOURCE
         Common.hpp
         Main.cpp
+        mlta/Analyzer.h
+        mlta/Analyzer.cpp
+        mlta/Common.h
+        mlta/Common.cpp
         mlta/CallGraph.h
         mlta/CallGraph.cpp
+        mlta/VirtualCallTargets.h
+        mlta/VirtualCallTargets.cpp
         )
 
 add_executable(Analyzer ${SOURCE})
@@ -18,10 +24,11 @@ set_target_properties(Analyzer PROPERTIES CXX_STANDARD_REQUIRED ON)
 target_precompile_headers(Analyzer PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/Common.hpp>")
 
 target_link_libraries(Analyzer
-        LLVMAsmParser
-        LLVMSupport
-        LLVMCore
         LLVMAnalysis
-        LLVMIRReader
+        LLVMAsmParser
         LLVMBitWriter
+        LLVMCore
+        LLVMIRReader
+        LLVMPasses
+        LLVMSupport
         )

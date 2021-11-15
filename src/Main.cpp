@@ -44,9 +44,13 @@ int main(int argc, char **argv) {
     SMDiagnostic err;
 
     GlobalContext globalCtx;
+    globalCtx.csvout.open("analyzer.csv", ios::trunc);
+
+    vector<string> bitcodeFiles;
 
     for (const auto &it : filesystem::recursive_directory_iterator(BitcodeFilesDir.getValue())) {
         if (it.path().extension() == ".bc") {
+            bitcodeFiles.push_back(it.path());
             outs() << "Reading bitcode file: " << it.path() << "\n";
             unique_ptr<Module> module = parseIRFile(it.path().string(), err, *llvmContext);
             if (!module) {
@@ -57,24 +61,27 @@ int main(int argc, char **argv) {
             Module *m = module.release();
             string name = it.path().filename().string();
             globalCtx.Modules.emplace_back(m, name);
-            globalCtx.ModuleMaps[m] = name;
         }
     }
 
     CallGraphPass CGPass(&globalCtx);
     CGPass.run(globalCtx.Modules);
 
-    for (const auto &callee : globalCtx.Callers) {
-        outs() << "Callee: " << callee.first->getName() << " has " << callee.second.size()
-               << " callers identified \n";
-        for (const auto caller : callee.second) {
-            outs() << "    called from " << caller->getFunction()->getName();
-            if (find(globalCtx.IndirectCallInsts.begin(), globalCtx.IndirectCallInsts.end(),
-                     caller) != globalCtx.IndirectCallInsts.end()) {
-                outs() << " <= is an indirect call";
-            }
-            outs() << '\n';
-        }
+    for (const string &bitcodeFile : bitcodeFiles) {
+        CGPass.resolveVirtualCallTargets(bitcodeFile);
     }
+
+    //    for (const auto &callee : globalCtx.Callers) {
+    //        outs() << "Callee: " << demangle(callee.first->getName().str()) << " has "
+    //               << callee.second.size() << " callers identified \n";
+    //        for (const auto caller : callee.second) {
+    //            outs() << "    called from " << demangle(caller->getFunction()->getName().str());
+    //            if (find(globalCtx.IndirectCallInsts.begin(), globalCtx.IndirectCallInsts.end(),
+    //                     caller) != globalCtx.IndirectCallInsts.end()) {
+    //                outs() << " <= is an indirect call";
+    //            }
+    //            outs() << '\n';
+    //        }
+    //    }
     return 0;
 }

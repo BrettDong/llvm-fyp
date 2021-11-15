@@ -3,6 +3,7 @@
 #define _COMMON_H_
 
 #include <fstream>
+#include <regex>
 #include <set>
 #include <sstream>
 #include <thread>

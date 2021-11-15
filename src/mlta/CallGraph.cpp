@@ -12,167 +12,152 @@
 
 #include "CallGraph.h"
 
-void IterativeModulePass::run(ModuleList &modules) {
-    ModuleList::iterator i, e;
-    OP << "[" << ID << "] Initializing " << modules.size() << " modules ";
-    bool again = true;
-    while (again) {
-        again = false;
-        for (i = modules.begin(), e = modules.end(); i != e; ++i) {
-            again |= doInitialization(i->first);
-            OP << ".";
-        }
-    }
-    OP << "\n";
-
-    unsigned iter = 0, changed = 1;
-    while (changed) {
-        ++iter;
-        changed = 0;
-        unsigned counter_modules = 0;
-        unsigned total_modules = modules.size();
-        for (i = modules.begin(), e = modules.end(); i != e; ++i) {
-            OP << "[" << ID << " / " << iter << "] ";
-            OP << "[" << ++counter_modules << " / " << total_modules << "] ";
-            OP << "[" << i->second << "]\n";
-
-            bool ret = doModulePass(i->first);
-            if (ret) {
-                ++changed;
-                OP << "\t [CHANGED]\n";
-            } else
-                OP << "\n";
-        }
-        OP << "[" << ID << "] Updated in " << changed << " modules.\n";
-    }
-
-    OP << "[" << ID << "] Postprocessing ...\n";
-    again = true;
-    while (again) {
-        again = false;
-        for (i = modules.begin(), e = modules.end(); i != e; ++i) {
-            // TODO: Dump the results.
-            again |= doFinalization(i->first);
-        }
-    }
-
-    OP << "[" << ID << "] Done!\n\n";
-}
+using namespace virtcall;
 
 // cl::opt<unsigned> VerboseLevel;
 map<Type *, string> TypeToTNameMap;
 
-size_t funcHash(Function *F, bool withName = true) {
-    hash<string> str_hash;
-    string output;
-
-#ifdef HASH_SOURCE_INFO
-    DISubprogram *SP = F->getSubprogram();
-
-    if (SP) {
-        output = SP->getFilename();
-        output = output + to_string(uint_hash(SP->getLine()));
-    } else {
-#endif
-        string sig;
-        raw_string_ostream rso(sig);
-        Type *FTy = F->getFunctionType();
-        FTy->print(rso);
-        output = rso.str();
-
-        if (withName) output += F->getName();
-#ifdef HASH_SOURCE_INFO
-    }
-#endif
-    string::iterator end_pos = remove(output.begin(), output.end(), ' ');
-    output.erase(end_pos, output.end());
-
-    return str_hash(output);
-}
-
-size_t callHash(CallInst *CI) {
-    Function *CF = CI->getCalledFunction();
-
-    if (CF)
-        return funcHash(CF);
-    else {
-        hash<string> str_hash;
-        string sig;
-        raw_string_ostream rso(sig);
-        Type *FTy = CI->getFunctionType();
-        FTy->print(rso);
-
-        string strip_str = rso.str();
-        string::iterator end_pos = remove(strip_str.begin(), strip_str.end(), ' ');
-        strip_str.erase(end_pos, strip_str.end());
-        return str_hash(strip_str);
-    }
-}
-
-string HandleSimpleTy(Type *Ty) {
-    unsigned size = Ty->getScalarSizeInBits();
-    string ret = std::to_string(size);
-    return ret;
-}
-
-string expand_struct(StructType *STy) {
-    string ty_str = "";
-    unsigned NumEle = STy->getNumElements();
-    uint64_t TySize;
-    // TODO: Handle opaque structures
-    if (STy->isOpaque())
-        TySize = 0;
-    else
-        TySize = CurrentLayout->getStructLayout(STy)->getSizeInBits();
-    ty_str = ty_str + to_string(NumEle) + "," + to_string(TySize);
-    return ty_str;
-}
-
-size_t typeHash(Type *Ty) {
-    hash<string> str_hash;
-    string sig;
-
-    raw_string_ostream rso(sig);
-    string ty_str = "";
-    StructType *STy = dyn_cast<StructType>(Ty);
-    if (STy == NULL)
-        ty_str = ty_str + HandleSimpleTy(Ty);
-    else {
-        // Struct type
-        if (STy->hasName()) {
-            string STyname = STy->getName().str();
-            ty_str = ty_str + STyname + expand_struct(STy);
-        } else if (TypeToTNameMap.find(Ty) != TypeToTNameMap.end()) {
-            ty_str = ty_str + TypeToTNameMap[Ty] + expand_struct(STy);
-        } else {
-            ty_str = ty_str + expand_struct(STy);
-        }
-    }
-
-    string::iterator end_pos = remove(ty_str.begin(), ty_str.end(), ' ');
-    ty_str.erase(end_pos, ty_str.end());
-
-    return str_hash(ty_str);
-}
-
-size_t hashIdxHash(size_t Hs, int Idx) {
-    hash<string> str_hash;
-    return Hs + str_hash(to_string(Idx));
-}
-
-size_t typeIdxHash(Type *Ty, int Idx) { return hashIdxHash(typeHash(Ty), Idx); }
+const DataLayout *CurrentLayout;
 
 DenseMap<size_t, FuncSet> CallGraphPass::typeFuncsMap;
 unordered_map<size_t, set<size_t>> CallGraphPass::typeConfineMap;
 unordered_map<size_t, set<size_t>> CallGraphPass::typeTransitMap;
 set<size_t> CallGraphPass::typeEscapeSet;
-const DataLayout *CurrentLayout;
+
+struct CallGraphDebugInfo {
+    int caller_line = 0;
+    string callee_inlined_from_file = "";
+    string callee_inlined_from_line = "";
+};
+
+CallGraphDebugInfo readDebugInfo(CallBase *caller_cinst, string caller_filename) {
+    struct CallGraphDebugInfo info;
+    Instruction *caller_inst = dyn_cast<Instruction>(caller_cinst);
+    if (!caller_inst) {
+        return info;
+    }
+    const llvm::DebugLoc &debugInfo = caller_inst->getDebugLoc();
+    if (!debugInfo) {
+        return info;
+    }
+
+    info.caller_line = debugInfo->getLine();
+
+    // If it's inlined, find the file and line the inlining originated from
+    for (DILocation *inlined_at = debugInfo->getInlinedAt(); inlined_at;
+         inlined_at = inlined_at->getInlinedAt()) {
+        DILocalScope *scope = inlined_at->getScope();
+        string filename = scope->getFilename().str();
+        if (filename == caller_filename) {
+            info.caller_line = inlined_at->getLine();
+            info.callee_inlined_from_file = debugInfo->getFilename().str();
+            info.callee_inlined_from_line = to_string(debugInfo->getLine());
+            break;
+        }
+    }
+    return info;
+}
+
+void CallGraphPass::printCallGraphHeader() {
+    Ctx->csvout << ""
+                << "\"caller_filename\","
+                << "\"caller_function\","
+                << "\"caller_def_line\","
+                << "\"caller_line\","
+                << "\"callee_filename\","
+                << "\"callee_function\","
+                << "\"callee_line\","
+                << "\"callee_calltype\","
+                << "\"callee_inlined_from_file\","
+                << "\"callee_inlined_from_line\","
+                << "\"indirect_found_with\""
+                << "\n";
+}
+
+void CallGraphPass::printCallGraphRow(CallBase *caller_cinst, Function *callee_func,
+                                      string callee_type, string indirect_found_with) {
+    string callee_line = "";
+    string callee_name = "";
+    string callee_name_nodemangle = "";
+    string callee_filename = "";
+
+    if (callee_func) {
+        callee_name_nodemangle = callee_func->getName().str();
+        DISubprogram *callee_sp = callee_func->getSubprogram();
+        if (callee_sp) {
+            callee_line = to_string(callee_sp->getLine());
+            callee_filename = callee_sp->getFilename().str();
+            if (Ctx->demangle == demangle_debug_only) callee_name = callee_sp->getName().str();
+        }
+        if (Ctx->demangle == demangle_all) callee_name = demangle(callee_name_nodemangle);
+    }
+
+    string caller_name = "";
+    string caller_name_nodemangle = "";
+    string caller_filename = "";
+    string caller_line_funcdef = "";
+
+    Function *caller_func = caller_cinst->getCaller();
+    if (caller_func) {
+        caller_name_nodemangle = caller_func->getName().str();
+        DISubprogram *caller_sp = caller_func->getSubprogram();
+        if (caller_sp) {
+            caller_line_funcdef = to_string(caller_sp->getLine());
+            caller_filename = caller_sp->getFilename().str();
+            if (Ctx->demangle == demangle_debug_only) caller_name = caller_sp->getName().str();
+        } else if (Module *m = caller_func->getParent()) {
+            caller_filename = m->getSourceFileName();
+        }
+        if (Ctx->demangle == demangle_all) caller_name = demangle(caller_name_nodemangle);
+    }
+
+    if (callee_name.empty()) {
+        if (!callee_name_nodemangle.empty())
+            callee_name = callee_name_nodemangle;
+        else
+            return;
+    }
+    if (caller_name.empty()) {
+        if (!caller_name_nodemangle.empty())
+            caller_name = caller_name_nodemangle;
+        else
+            return;
+    }
+
+    OP << caller_name << " --(" << callee_type << ")--> " << callee_name << "\n";
+    return;
+
+    CallGraphDebugInfo info = readDebugInfo(caller_cinst, caller_filename);
+    if (info.caller_line == 0) {
+        // Skip this caller-callee pair if caller_line is 0
+        return;
+    }
+
+    Ctx->csvout << ""
+                << "\"" << caller_filename << "\","
+                << "\"" << caller_name << "\","
+                << "\"" << caller_line_funcdef << "\","
+                << "\"" << to_string(info.caller_line) << "\","
+                << "\"" << callee_filename << "\","
+                << "\"" << callee_name << "\","
+                << "\"" << callee_line << "\","
+                << "\"" << callee_type << "\","
+                << "\"" << info.callee_inlined_from_file << "\","
+                << "\"" << info.callee_inlined_from_line << "\","
+                << "\"" << indirect_found_with << "\""
+                << "\n";
+}
+CallGraphPass::CallGraphPass(GlobalContext *Ctx_) : IterativeModulePass(Ctx_, "CallGraph") {
+    printCallGraphHeader();
+}
+
 // Find targets of indirect calls based on type analysis: as long as
 // the number and type of parameters of a function matches with the
 // ones of the callsite, we say the function is a possible target of
 // this call.
-void CallGraphPass::findCalleesWithType(CallInst *CI, FuncSet &S) {
-    if (CI->isInlineAsm()) return;
+void CallGraphPass::findCalleesWithType(CallBase *CS, FuncSet &S) {
+    LOG_OBJ("CallBase: ", CS);
+    if (CS->isInlineAsm()) return;
 
     //
     // TODO: performance improvement: cache results for types
@@ -183,7 +168,7 @@ void CallGraphPass::findCalleesWithType(CallInst *CI, FuncSet &S) {
             // Compare only known args in VarArg.
         }
         // otherwise, the numbers of args should be equal.
-        else if (F->arg_size() != CI->arg_size()) {
+        else if (F->arg_size() != CS->arg_size()) {
             continue;
         }
 
@@ -191,9 +176,23 @@ void CallGraphPass::findCalleesWithType(CallInst *CI, FuncSet &S) {
             continue;
         }
 
+        // Skip if the function return types don't match
+        Type *CSTy = CS->getType();
+        Type *FRetTy = F->getReturnType();
+        if (CSTy && FRetTy) {
+            // LOG_OBJ("CallSite Type: ", CSTy);
+            // LOG_OBJ("Function Return Type: ", FRetTy);
+            // From Type.h:
+            // The instances of the Type class are immutable: once they are created,
+            // they are never changed.  Also note that only one instance of a
+            // particular type is ever created.  Thus seeing if two types are equal is
+            // a matter of doing a trivial pointer comparison.
+            if (CSTy != FRetTy) continue;
+        }
+
         // Type matching on args.
         bool Matched = true;
-        auto AI = CI->arg_begin();
+        auto AI = CS->arg_begin();
         for (Function::arg_iterator FI = F->arg_begin(), FE = F->arg_end(); FI != FE; ++FI, ++AI) {
             // Check type mis-matches.
             // Get defined type on callee side.
@@ -240,93 +239,6 @@ void CallGraphPass::findCalleesWithType(CallInst *CI, FuncSet &S) {
     }
 }
 
-void CallGraphPass::unrollLoops(Function *F) {
-    if (F->isDeclaration()) return;
-
-    DominatorTree DT = DominatorTree();
-    DT.recalculate(*F);
-    LoopInfo *LI = new LoopInfo();
-    LI->releaseMemory();
-    LI->analyze(DT);
-
-    // Collect all loops in the function
-    set<Loop *> LPSet;
-    for (LoopInfo::iterator i = LI->begin(), e = LI->end(); i != e; ++i) {
-        Loop *LP = *i;
-        LPSet.insert(LP);
-
-        list<Loop *> LPL;
-
-        LPL.push_back(LP);
-        while (!LPL.empty()) {
-            LP = LPL.front();
-            LPL.pop_front();
-            vector<Loop *> SubLPs = LP->getSubLoops();
-            for (auto SubLP : SubLPs) {
-                LPSet.insert(SubLP);
-                LPL.push_back(SubLP);
-            }
-        }
-    }
-
-    for (Loop *LP : LPSet) {
-        // Get the header,latch block, exiting block of every loop
-        BasicBlock *HeaderB = LP->getHeader();
-
-        unsigned NumBE = LP->getNumBackEdges();
-        SmallVector<BasicBlock *, 4> LatchBS;
-
-        LP->getLoopLatches(LatchBS);
-
-        for (BasicBlock *LatchB : LatchBS) {
-            if (!HeaderB || !LatchB) {
-                OP << "ERROR: Cannot find Header Block or Latch Block\n";
-                continue;
-            }
-            // Two cases:
-            // 1. Latch Block has only one successor:
-            // 	for loop or while loop;
-            // 	In this case: set the Successor of Latch Block to the
-            //	successor block (out of loop one) of Header block
-            // 2. Latch Block has two successor:
-            // do-while loop:
-            // In this case: set the Successor of Latch Block to the
-            //  another successor block of Latch block
-
-            // get the last instruction in the Latch block
-            Instruction *TI = LatchB->getTerminator();
-            // Case 1:
-            if (LatchB->getSingleSuccessor() != NULL) {
-                for (succ_iterator sit = succ_begin(HeaderB); sit != succ_end(HeaderB); ++sit) {
-                    BasicBlock *SuccB = *sit;
-                    BasicBlockEdge BBE = BasicBlockEdge(HeaderB, SuccB);
-                    // Header block has two successor,
-                    // one edge dominate Latch block;
-                    // another does not.
-                    if (DT.dominates(BBE, LatchB))
-                        continue;
-                    else {
-                        TI->setSuccessor(0, SuccB);
-                    }
-                }
-            }
-            // Case 2:
-            else {
-                for (succ_iterator sit = succ_begin(LatchB); sit != succ_end(LatchB); ++sit) {
-                    BasicBlock *SuccB = *sit;
-                    // There will be two successor blocks, one is header
-                    // we need successor to be another
-                    if (SuccB == HeaderB)
-                        continue;
-                    else {
-                        TI->setSuccessor(0, SuccB);
-                    }
-                }
-            }
-        }
-    }
-}
-
 bool CallGraphPass::isCompositeType(Type *Ty) {
     if (Ty->isStructTy() || Ty->isArrayTy() || Ty->isVectorTy())
         return true;
@@ -337,21 +249,36 @@ bool CallGraphPass::isCompositeType(Type *Ty) {
 bool CallGraphPass::typeConfineInInitializer(User *Ini) {
     list<User *> LU;
     LU.push_back(Ini);
+    set<size_t> typeHashes;
 
     while (!LU.empty()) {
         User *U = LU.front();
         LU.pop_front();
 
-        int idx = 0;
+        LOG_OBJ("Initializer: ", U);
+
         for (auto oi = U->op_begin(), oe = U->op_end(); oi != oe; ++oi) {
-            Value *O = *oi;
+            // Strip possible bitcasts
+            Value *O = (*oi)->stripPointerCasts();
             Type *OTy = O->getType();
+
             // Case 1: function address is assigned to a type
             if (Function *F = dyn_cast<Function>(O)) {
                 Type *ITy = U->getType();
                 // TODO: use offset?
                 unsigned ONo = oi->getOperandNo();
+                LOG_FMT(
+                    "Adding to typeFuncsMap: Function [%s] assigned to field idx "
+                    "[%u]\n",
+                    F->getName().str().c_str(), ONo);
                 typeFuncsMap[typeIdxHash(ITy, ONo)].insert(F);
+                for (auto const &h : typeHashes) {
+                    LOG_FMT(
+                        "Adding to typeFuncsMap from typeHashes: Function [%s] "
+                        "assigned to field with hash [%lu]\n",
+                        F->getName().str().c_str(), h);
+                    typeFuncsMap[h].insert(F);
+                }
             }
             // Case 2: a composite-type object (value) is assigned to a
             // field of another composite-type object
@@ -359,7 +286,9 @@ bool CallGraphPass::typeConfineInInitializer(User *Ini) {
                 // confine composite types
                 Type *ITy = U->getType();
                 unsigned ONo = oi->getOperandNo();
-                typeConfineMap[typeIdxHash(ITy, ONo)].insert(typeHash(OTy));
+                size_t h = typeIdxHash(ITy, ONo);
+                LOG_FMT("Adding to typeHashes: %lu\n", h);
+                typeHashes.insert(h);
 
                 // recognize nested composite types
                 User *OU = dyn_cast<User>(O);
@@ -373,13 +302,6 @@ bool CallGraphPass::typeConfineInInitializer(User *Ini) {
                 // if the pointer points a composite type, skip it as
                 // there should be another initializer for it, which
                 // will be captured
-
-                // now consider if it is a bitcast from a function
-                // address
-                if (BitCastOperator *CO = dyn_cast<BitCastOperator>(O)) {
-                    // TODO: ? to test if all address-taken functions
-                    // are captured
-                }
             }
         }
     }
@@ -387,60 +309,51 @@ bool CallGraphPass::typeConfineInInitializer(User *Ini) {
     return true;
 }
 
-bool CallGraphPass::typeConfineInStore(StoreInst *SI) {
-    Value *PO = SI->getPointerOperand();
-    Value *VO = SI->getValueOperand();
+bool CallGraphPass::typeConfineInStore(Value *Dst, Value *Src) {
+    LOG_OBJ("Destination: ", Dst);
+    // Strip possible bitcasts
+    Src = Src->stripPointerCasts();
+    LOG_FMT("Source: %s\n", Src->getName().str().c_str());
+    IndexVector NextLayer;
+    int FieldIdx = -1;
 
     // Case 1: The value operand is a function
-    if (Function *F = dyn_cast<Function>(VO)) {
-        Type *STy;
-        int Idx;
-        if (nextLayerBaseType(PO, STy, Idx, DL)) {
-            typeFuncsMap[typeIdxHash(STy, Idx)].insert(F);
-            return true;
-        } else {
-            // TODO: OK, for now, let's only consider composite type;
-            // skip for other cases
-            return false;
+    if (Function *F = dyn_cast<Function>(Src)) {
+        // Type *STyPrev = NULL;
+        while (Type *STy = nextLayerBaseType(Dst, FieldIdx, &NextLayer)) {
+            LOG_OBJ("Next layer type: ", STy);
+            LOG_FMT(
+                "Adding to typeFuncsMap: Function [%s] assigned to field idx "
+                "[%u]\n",
+                F->getName().str().c_str(), FieldIdx);
+            typeFuncsMap[typeIdxHash(STy, FieldIdx)].insert(F);
+            if (NextLayer.empty()) {
+                break;
+            }
         }
+        return true;
     }
 
-    // Cast 2: value-based store
-    // A composite-type object is stored
-    Type *EPTy = dyn_cast<PointerType>(PO->getType())->getElementType();
-    Type *VTy = VO->getType();
-    if (isCompositeType(VTy)) {
-        if (isCompositeType(EPTy)) {
-            typeConfineMap[typeHash(EPTy)].insert(typeHash(VTy));
-            return true;
-        } else {
-            escapeType(EPTy);
-            return false;
-        }
-    }
-
-    // Case 3: reference (i.e., pointer)-based store
-    if (isa<ConstantPointerNull>(VO)) return false;
+    // Case 2: reference (i.e., pointer)-based store
+    if (isa<ConstantPointerNull>(Src)) return false;
     // FIXME: Get the correct types
-    PointerType *PVTy = dyn_cast<PointerType>(VO->getType());
+    PointerType *PVTy = dyn_cast<PointerType>(Src->getType());
     if (!PVTy) return false;
 
     Type *EVTy = PVTy->getElementType();
 
     // Store something to a field of a composite-type object
-    Type *STy;
-    int Idx;
-    if (nextLayerBaseType(PO, STy, Idx, DL)) {
+    if (Type *STy = nextLayerBaseType(Dst, FieldIdx)) {
+        LOG_OBJ("Next layer type: ", STy);
         // The value operand is a pointer to a composite-type object
         if (isCompositeType(EVTy)) {
-            typeConfineMap[typeIdxHash(STy, Idx)].insert(typeHash(EVTy));
+            LOG_FMT("Adding to typeConfineMap: Type assigned to field idx [%i]\n", FieldIdx);
+            LOG_OBJ("assigned to type: ", STy);
+            LOG_OBJ("assigned type: ", EVTy);
+            typeConfineMap[typeHash(STy)].insert(typeHash(EVTy));
             return true;
         } else {
-            // TODO: The type is escaping?
-            // Example: mm/mempool.c +188: pool->free = free_fn;
-            // free_fn is a function pointer from an function
-            // argument
-            escapeType(STy, Idx);
+            escapeType(STy, FieldIdx);
             return false;
         }
     }
@@ -448,7 +361,17 @@ bool CallGraphPass::typeConfineInStore(StoreInst *SI) {
     return false;
 }
 
+Type *getPointerType(Type *T) {
+    if (PointerType *PT = dyn_cast<PointerType>(T)) {
+        return getPointerType(PT->getElementType());
+    } else {
+        return T;
+    }
+}
+
 bool CallGraphPass::typeConfineInCast(CastInst *CastI) {
+    LOG_OBJ("CastInst: ", CastI);
+
     // If a function address is ever cast to another type and stored
     // to a composite type, the escaping analysis will capture the
     // composite type and discard it
@@ -457,21 +380,23 @@ bool CallGraphPass::typeConfineInCast(CastInst *CastI) {
     Type *ToTy = ToV->getType(), *FromTy = FromV->getType();
     if (isCompositeType(FromTy)) {
         transitType(ToTy, FromTy);
+        LOG("isCompositeType, done");
         return true;
     }
 
     if (!FromTy->isPointerTy() || !ToTy->isPointerTy()) return false;
+
     Type *EToTy = dyn_cast<PointerType>(ToTy)->getElementType();
     Type *EFromTy = dyn_cast<PointerType>(FromTy)->getElementType();
     if (isCompositeType(EToTy) && isCompositeType(EFromTy)) {
         transitType(EToTy, EFromTy);
         return true;
     }
-
     return false;
 }
 
 void CallGraphPass::escapeType(Type *Ty, int Idx) {
+    LOG_OBJ("Type: ", Ty);
     if (Idx == -1)
         typeEscapeSet.insert(typeHash(Ty));
     else
@@ -479,6 +404,8 @@ void CallGraphPass::escapeType(Type *Ty, int Idx) {
 }
 
 void CallGraphPass::transitType(Type *ToTy, Type *FromTy, int ToIdx, int FromIdx) {
+    LOG_OBJ("ToType: ", ToTy);
+    LOG_OBJ("FromType: ", FromTy);
     if (ToIdx != -1 && FromIdx != -1)
         typeTransitMap[typeIdxHash(ToTy, ToIdx)].insert(typeIdxHash(FromTy, FromIdx));
     else
@@ -494,143 +421,225 @@ void CallGraphPass::funcSetIntersection(FuncSet &FS1, FuncSet &FS2, FuncSet &FS)
 
 // Get the composite type of the lower layer. Layers are split by
 // memory loads
-Value *CallGraphPass::nextLayerBaseType(Value *V, Type *&BTy, int &Idx, const DataLayout *_DL) {
-    // Two ways to get the next layer type: GetElementPtrInst and
-    // LoadInst
-    // Case 1: GetElementPtrInst
-    if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(V)) {
-        Type *PTy = GEP->getPointerOperand()->getType();
-        Type *Ty = PTy->getPointerElementType();
-        if ((Ty->isStructTy() || Ty->isArrayTy() || Ty->isVectorTy()) &&
-            GEP->hasAllConstantIndices()) {
-            BTy = Ty;
-            User::op_iterator ie = GEP->idx_end();
-            ConstantInt *ConstI = dyn_cast<ConstantInt>((--ie)->get());
-            Idx = ConstI->getSExtValue();
-            return GEP->getPointerOperand();
-        } else
+Type *CallGraphPass::nextLayerBaseType(Value *V, int &Idx, IndexVector *Indices) {
+    LOG_OBJ("Value: ", V);
+
+    // Case 1: GEPOperator
+    if (GEPOperator *GEP = dyn_cast<GEPOperator>(V)) {
+        LOG_OBJ("GEPOperator: ", GEP);
+
+        if (GEP->getNumIndices() < 2) {
+            LOG("Expecting at least two indices");
             return NULL;
+        }
+        if (!GEP->hasAllConstantIndices()) {
+            LOG("Not all constant indices");
+            return NULL;
+        }
+        IndexVector IntermediateIndices;
+        if (!Indices) {
+            LOG("Indices is NULL");
+            Indices = &IntermediateIndices;
+        }
+        if (Indices->empty()) {
+            LOG("Indices is empty");
+            Indices->push_back(GEP->getOperand(1));
+            for (unsigned i = 1, e = GEP->getNumIndices() - 1; i != e; ++i) {
+                Indices->push_back(GEP->getOperand(i + 1));
+            }
+        }
+        Type *Ty = GetElementPtrInst::getIndexedType(GEP->getSourceElementType(), *Indices);
+        // Check if bitcast impacts the type
+        // TODO: use offsets instead of indexes to handle these cases proprely
+        Type *TyBeforeBitcast =
+            GEP->getPointerOperand()->stripPointerCasts()->getType()->getPointerElementType();
+        Type *TyAfterBitcast = GEP->getPointerOperand()->getType()->getPointerElementType();
+        if (TyBeforeBitcast != TyAfterBitcast && TyAfterBitcast == Ty) {
+            LOG("Bitcast impacts types:");
+            LOG_OBJ("Type before bitcast: ", TyBeforeBitcast);
+            LOG_OBJ("Type after bitcast: ", TyAfterBitcast);
+            int NumElemsBeforeBitcast = 0;
+            int NumElemsAfterBitcast = 0;
+            if (TyBeforeBitcast->isStructTy() && TyAfterBitcast->isStructTy()) {
+                LOG("Both are struct types");
+                NumElemsBeforeBitcast = TyBeforeBitcast->getStructNumElements();
+                NumElemsAfterBitcast = TyAfterBitcast->getStructNumElements();
+            } else {
+                LOG("Not struct types");
+                LOG_FMT("Type before: %i\n", TyBeforeBitcast->getTypeID());
+                LOG_FMT("Type after: %i\n", TyAfterBitcast->getTypeID());
+            }
+            if (NumElemsBeforeBitcast != NumElemsAfterBitcast) {
+                LOG("Bitcast impacts number of fields");
+                return NULL;
+            }
+            Ty = TyBeforeBitcast;
+        }
+
+        LOG_OBJ("Final Type: ", Ty);
+        if (!(Ty->isStructTy() || Ty->isArrayTy() || Ty->isVectorTy())) {
+            LOG("Unsupported type");
+            return NULL;
+        }
+        Value *idx = GEP->getOperand(Indices->size() + 1);
+        Idx = dyn_cast<ConstantInt>(idx)->getSExtValue();
+        LOG_FMT("Final index: %i\n", Idx);
+        Indices->pop_back();
+        return Ty;
     }
     // Case 2: LoadInst
     else if (LoadInst *LI = dyn_cast<LoadInst>(V)) {
-        return nextLayerBaseType(LI->getOperand(0), BTy, Idx, _DL);
+        LOG("LoadInst");
+        return nextLayerBaseType(LI->getOperand(0), Idx, Indices);
+    } else if (AllocaInst *AI = dyn_cast<AllocaInst>(V)) {
+        LOG_OBJ("AllocaInst: ", AI);
+        Type *Ty = AI->getAllocatedType();
+        LOG_OBJ("Allocated type: ", Ty);
+        return Ty;
     }
     // Other instructions such as CastInst
     // FIXME: may introduce false positives
-#if 1
     else if (UnaryInstruction *UI = dyn_cast<UnaryInstruction>(V)) {
-        return nextLayerBaseType(UI->getOperand(0), BTy, Idx, _DL);
-    }
-#endif
-    else
+        LOG("UnaryInstruction");
+        return nextLayerBaseType(UI->getOperand(0), Idx, Indices);
+    } else {
+        LOG("Unexpected type");
         return NULL;
+    }
 }
 
-bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
+bool CallGraphPass::findCalleesWithMLTA(CallBase *CI, FuncSet &FS) {
+    LOG_OBJ("CallBase: ", CI);
+
     // Initial set: first-layer results
     FuncSet FS1 = Ctx->sigFuncsMap[callHash(CI)];
+
     if (FS1.size() == 0) {
         // No need to go through MLTA if the first layer is empty
+        LOG("Not in sigFuncsMap: MLTA failed");
         return false;
+    }
+
+    if (DEBUG) {
+        for (Function *Callee : FS1)
+            LOG_FMT("First-layer match: %s\n", Callee->getName().str().c_str());
     }
 
     FuncSet FS2, FST;
 
-    Type *LayerTy = NULL;
     int FieldIdx = -1;
     Value *CV = CI->getCalledOperand();
-
-    // Get the second-layer type
-#ifndef ONE_LAYER_MLTA
-    CV = nextLayerBaseType(CV, LayerTy, FieldIdx, DL);
-#else
-    CV = NULL;
-#endif
-
+    IndexVector NextLayer;
     int LayerNo = 1;
-    while (CV) {
+    int FirstIdx = -1;
+
+    while (Type *LayerTy = nextLayerBaseType(CV, FieldIdx, &NextLayer)) {
+        LOG_OBJ("Next layer LayerTy: ", LayerTy);
+        LOG_FMT("Next layer FieldIdx: %d\n", FieldIdx);
+
+        size_t TypeHash = typeHash(LayerTy);
+        size_t TypeIdxHash = typeIdxHash(LayerTy, FieldIdx);
+
         // Step 1: ensure the type hasn't escaped
-#if 1
-        if ((typeEscapeSet.find(typeHash(LayerTy)) != typeEscapeSet.end()) ||
-            (typeEscapeSet.find(typeIdxHash(LayerTy, FieldIdx)) != typeEscapeSet.end())) {
+        if ((typeEscapeSet.find(TypeHash) != typeEscapeSet.end()) ||
+            (typeEscapeSet.find(TypeIdxHash) != typeEscapeSet.end())) {
+            LOG("Stopping, type escapes");
             break;
         }
-#endif
+
+        if (FirstIdx == -1) FirstIdx = FieldIdx;
 
         // Step 2: get the funcset and merge
-        ++LayerNo;
-        FS2 = typeFuncsMap[typeIdxHash(LayerTy, FieldIdx)];
-        FST.clear();
+        FS2 = typeFuncsMap[TypeIdxHash];
         funcSetIntersection(FS1, FS2, FST);
+        for (Function *Callee : FST)
+            LOG_FMT("Intersection after first merge: %s\n", Callee->getName().str().c_str());
 
-        // Step 3: get transitted funcsets and merge
-        // NOTE: this nested loop can be slow
+        // Step 2b: get the funcset from typeConfineMap
+        auto TCit = typeConfineMap.find(TypeHash);
+        if (TCit != typeConfineMap.end()) {
+            for (size_t hash : TCit->second) {
+                LOG_FMT("typeConfineMap hash: %lu, with Idx: %i\n", hash, FirstIdx);
+                FS2 = typeFuncsMap[hashIdxHash(hash, FirstIdx)];
+                for (Function *Callee : FS2) {
+                    LOG_FMT("FS2 (from type confine): %s\n", Callee->getName().str().c_str());
+                }
+                FST.insert(FS2.begin(), FS2.end());
+            }
+        }
+        for (Function *Callee : FST)
+            LOG_FMT("Intersection after typeconfine union: %s\n", Callee->getName().str().c_str());
+
+            // Step 3: get transitted funcsets and merge
 #if 1
-        unsigned TH = typeHash(LayerTy);
-        list<unsigned> LT;
-        LT.push_back(TH);
+        list<size_t> LT;
+        LT.push_back(TypeHash);
         while (!LT.empty()) {
-            unsigned CT = LT.front();
+            size_t CT = LT.front();
             LT.pop_front();
 
             for (auto H : typeTransitMap[CT]) {
+                LOG_FMT("typeTransitMap: from:%lu --> to:%lu\n", H, CT);
                 FS2 = typeFuncsMap[hashIdxHash(H, FieldIdx)];
-                FST.clear();
                 funcSetIntersection(FS1, FS2, FST);
-                if (FST.size() != 0) FS1 = FST;
+                FS1 = FST;
             }
         }
 #endif
+        FS1 = FST;
+        if (DEBUG) {
+            for (Function *Callee : FS1)
+                LOG_FMT("Match after layer %i: %s\n", LayerNo, Callee->getName().str().c_str());
+        }
 
-        // Step 4: go to a lower layer
-        CV = nextLayerBaseType(CV, LayerTy, FieldIdx, DL);
-        if (FST.size() != 0) FS1 = FST;
+        if (NextLayer.empty()) {
+            LOG("Stopping, NextLayer is empty");
+            break;
+        }
+        ++LayerNo;
     }
 
     FS = FS1;
-#if 0
-    if (LayerNo > 1 && FS.size()) {
-        OP<<"[CallGraph] Indirect call: "<<*CI<<"\n";
-        printSourceCodeInfo(CI);
-        OP<<"\n\t Indirect-call targets:\n";
-        for (auto F : FS) {
-            printSourceCodeInfo(F);
-        }
-        OP<<"\n";
-    }
-#endif
     return true;
 }
 
+void CallGraphPass::addAddressTakenFunction(Function *F) {
+    LOG_FMT("adding to AddressTakenFuncs: %s\n", F->getName().str().c_str());
+    Ctx->AddressTakenFuncs.insert(F);
+    LOG_FMT("adding to sigFuncsMap: %s\n", F->getName().str().c_str());
+    Ctx->sigFuncsMap[funcHash(F, false)].insert(F);
+}
+
 bool CallGraphPass::doInitialization(Module *M) {
+    LOG_FMT("Module: %s\n", M->getName().str().c_str());
+
     DL = &(M->getDataLayout());
-    CurrentLayout = DL;
     Int8PtrTy = Type::getInt8PtrTy(M->getContext());
     IntPtrTy = DL->getIntPtrType(M->getContext());
 
-    //
     // Iterate and process globals
-    //
     for (Module::global_iterator gi = M->global_begin(); gi != M->global_end(); ++gi) {
         GlobalVariable *GV = &*gi;
         if (!GV->hasInitializer()) continue;
         Constant *Ini = GV->getInitializer();
         if (!isa<ConstantAggregate>(Ini)) continue;
 
+        LOG_OBJ("Global variable init: ", Ini);
         typeConfineInInitializer(Ini);
     }
 
     // Iterate functions and instructions
     for (Function &F : *M) {
-        // if (F.empty())
-        //	continue;
         if (F.isDeclaration()) continue;
+
+        LOG_FMT("Function: %s\n", F.getName().str().c_str());
 
         for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
             Instruction *I = &*i;
 
             if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
-                typeConfineInStore(SI);
+                LOG_OBJ("Store inst: ", SI);
+                typeConfineInStore(SI->getPointerOperand(), SI->getValueOperand());
             } else if (CastInst *CastI = dyn_cast<CastInst>(I)) {
                 typeConfineInCast(CastI);
             }
@@ -638,30 +647,80 @@ bool CallGraphPass::doInitialization(Module *M) {
 
         // Collect address-taken functions.
         if (F.hasAddressTaken()) {
-            Ctx->AddressTakenFuncs.insert(&F);
-            Ctx->sigFuncsMap[funcHash(&F, false)].insert(&F);
+            addAddressTakenFunction(&F);
         }
 
         // Collect global function definitions.
         if (F.hasExternalLinkage() && !F.empty()) {
             // External linkage always ends up with the function name.
             StringRef FName = F.getName();
-            // Special case: make the names of syscalls consistent.
-            if (FName.startswith("SyS_")) FName = StringRef("sys_" + FName.str().substr(4));
-
             // Map functions to their names.
             Ctx->GlobalFuncs[FName.str()] = &F;
         }
 
+        LOG("checking UnifiedFuncMap");
         // Keep a single copy for same functions (inline functions)
         size_t fh = funcHash(&F);
         if (Ctx->UnifiedFuncMap.find(fh) == Ctx->UnifiedFuncMap.end()) {
             Ctx->UnifiedFuncMap[fh] = &F;
-            Ctx->UnifiedFuncSet.insert(&F);
+        }
+    }
 
-            if (F.hasAddressTaken()) {
-                Ctx->sigFuncsMap[funcHash(&F, false)].insert(&F);
+    if (DEBUG) {
+        ostringstream os;
+        LOG("typeFuncsMap:");
+        for (auto const &pair : typeFuncsMap) {
+            os << "[Key:" << to_string(pair.first) << "]: ";
+            for (Function *f : pair.second) {
+                os << f->getName().str() << " ";
             }
+            os << "\n";
+        }
+        LOG(os.str().c_str());
+        os.str("");
+        os.clear();
+        LOG("typeConfineMap:");
+        for (auto const &pair : typeConfineMap) {
+            os << "[Key:" << to_string(pair.first) << "]: ";
+            for (size_t second : pair.second) {
+                os << to_string(second) << " ";
+            }
+            os << "\n";
+        }
+        LOG(os.str().c_str());
+        os.str("");
+        os.clear();
+        LOG("typeTransitMap:");
+        for (auto const &pair : typeTransitMap) {
+            os << "[Key:" << to_string(pair.first) << "]: ";
+            for (size_t second : pair.second) {
+                os << to_string(second) << " ";
+            }
+            os << "\n";
+        }
+        LOG(os.str().c_str());
+        LOG("UnifiedFuncMap:");
+        for (auto const &pair : Ctx->UnifiedFuncMap) {
+            LOG(("[Key:" + to_string(pair.first) + "]: " + pair.second->getName().str()).c_str());
+        }
+        os.str("");
+        os.clear();
+        LOG("sigFuncsMap:");
+        for (auto const &pair : Ctx->sigFuncsMap) {
+            os << "[Key:" << to_string(pair.first) << "]: ";
+            for (Function *f : pair.second) {
+                os << f->getName().str() << " ";
+            }
+            os << "\n";
+        }
+        LOG(os.str().c_str());
+        LOG("AddressTakenFuncs:");
+        for (Function *f : Ctx->AddressTakenFuncs) {
+            LOG_FMT("[%s]\n", f->getName().str().c_str());
+        }
+        LOG("typeEscapeSet:");
+        for (size_t hash : typeEscapeSet) {
+            LOG_FMT("[Key:%lu]\n", hash);
         }
     }
 
@@ -671,66 +730,156 @@ bool CallGraphPass::doInitialization(Module *M) {
 bool CallGraphPass::doFinalization(Module *M) { return false; }
 
 bool CallGraphPass::doModulePass(Module *M) {
+    LOG_FMT("Module: %s\n", M->getName().str().c_str());
+
     // Use type-analysis to concervatively find possible targets of
     // indirect calls.
     for (Module::iterator f = M->begin(), fe = M->end(); f != fe; ++f) {
         Function *F = &*f;
+        LOG_FMT("Function: %s\n", F->getName().str().c_str());
 
-        // FIXME: No redundant function?
-        if (Ctx->UnifiedFuncSet.find(F) == Ctx->UnifiedFuncSet.end()) continue;
-
-            // Unroll loops
-#ifdef UNROLL_LOOP_ONCE
-        unrollLoops(F);
-#endif
+        size_t fh = funcHash(F);
+        Function *UF = Ctx->UnifiedFuncMap[fh];
+        if (!UF) {
+            LOG("Not in UnifiedFuncMap, skipping");
+            continue;
+        }
 
         // Collect callers and callees
         for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
             // Map callsite to possible callees.
-            if (CallInst *CI = dyn_cast<CallInst>(&*i)) {
+            if (CallBase *CI = dyn_cast<CallBase>(&*i)) {
+                LOG_OBJ("CallBase: ", CI);
+                if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(CI)) {
+                    LOG("LLVM internal instruction");
+                    Value *Dst = NULL;
+                    Value *Src = NULL;
+                    // TODO: length, use offsets instead of indexes?
+                    if (MemCpyInst *M = dyn_cast<MemCpyInst>(II)) {
+                        LOG_OBJ("MemCpyInst ", M);
+                        Dst = M->getDest();
+                        Src = M->getSource();
+                    } else if (MemMoveInst *M = dyn_cast<MemMoveInst>(II)) {
+                        LOG_OBJ("MemMoveInst", M);
+                        Dst = M->getDest();
+                        Src = M->getSource();
+                    }
+                    if (Dst && Src) {
+                        typeConfineInStore(Dst, Src);
+                    }
+                    LOG("Skipping LLVM internal function");
+                    continue;
+                }
+
                 FuncSet FS;
                 Function *CF = CI->getCalledFunction();
                 Value *CV = CI->getCalledOperand();
+                if (!CF) {
+                    CF = dyn_cast<Function>(CV->stripPointerCastsAndAliases());
+                }
+                string indirectFoundWith = "";
                 // Indirect call
                 if (CI->isIndirectCall()) {
-#ifdef MLTA_FOR_INDIRECT_CALL
-                    findCalleesWithMLTA(CI, FS);
-#elif SOUND_MODE
-                    findCalleesWithType(CI, FS);
-#endif
+                    LOG("Inidirect call");
+                    if (Ctx->analysisType == ta_only) {
+                        findCalleesWithType(CI, FS);
+                        indirectFoundWith = "TA";
+                    } else {
+                        indirectFoundWith = "MLTA";
+                        bool ret = findCalleesWithMLTA(CI, FS);
+                        // To include in the output csv the cases where an indirect
+                        // function is called, but not assigned anywhere in the
+                        // target codebase, uncomment the following if statement:
+                        // if (!ret) {
+                        //   printCallGraphRow(CI, NULL, "indirect", "NOT_FOUND");
+                        // }
+                        if (!ret && Ctx->analysisType != mlta_only) {
+                            findCalleesWithType(CI, FS);
+                            indirectFoundWith = "TA";
+                        }
+                    }
 
-                    for (Function *Callee : FS) Ctx->Callers[Callee].insert(CI);
-
-                    // Save called values for future uses.
-                    Ctx->IndirectCallInsts.push_back(CI);
+                    for (Function *Callee : FS) {
+                        printCallGraphRow(CI, Callee, "indirect", indirectFoundWith);
+                    }
                 }
                 // Direct call
                 else {
+                    LOG("Direct call");
                     // not InlineAsm
                     if (CF) {
                         // Call external functions
                         if (CF->empty()) {
+                            LOG("External function call");
                             StringRef FName = CF->getName();
-                            if (FName.startswith("SyS_"))
-                                FName = StringRef("sys_" + FName.str().substr(4));
                             if (Function *GF = Ctx->GlobalFuncs[FName.str()]) CF = GF;
                         }
+                        LOG_FMT("Called function: %s\n", CF->getName().str().c_str());
                         // Use unified function
                         size_t fh = funcHash(CF);
-                        CF = Ctx->UnifiedFuncMap[fh];
-                        if (CF) {
-                            FS.insert(CF);
-                            Ctx->Callers[CF].insert(CI);
+                        Function *UF = Ctx->UnifiedFuncMap[fh];
+                        if (UF) {
+                            printCallGraphRow(CI, UF, "direct", "");
+                        } else {
+                            printCallGraphRow(CI, CF, "direct", "");
                         }
                     }
                     // InlineAsm
                     else {
+                        // LOG_OBJ("Inline assembly is not supported: ", CI);
                     }
                 }
-                Ctx->Callees[CI] = FS;
             }
         }
     }
-
     return false;
+}
+
+void CallGraphPass::getVirtualFunctionCandidates(CallBase *CI, VirtualCallTargetsResult &VCT,
+                                                 FuncSet &FS) {
+    LOG("Getting virtual function candidates");
+    FuncSet VFS = VCT.getVirtualCallCandidates(CI);
+    for (Function *F : VFS) {
+        LOG_FMT("Virtual call target: %s\n", F->getName().str().c_str());
+        FS.insert(F);
+    }
+}
+
+void CallGraphPass::resolveVirtualCallTargets(string wholeProgramBitcodeFile) {
+    // Find possible targets of virtual calls: this is run over a single merged
+    // module that contains all vtables with !type metadata.
+    //
+    if (wholeProgramBitcodeFile.empty()) {
+        return;
+    }
+
+    SMDiagnostic Err;
+    LLVMContext LLVMCtx;
+    VirtualCallTargetsResult virtualCallTargets;
+
+    unique_ptr<Module> M = parseIRFile(wholeProgramBitcodeFile, Err, LLVMCtx);
+    if (M == NULL) {
+        WARN_FMT("Error loading file: '%s'\n", wholeProgramBitcodeFile.c_str());
+        return;
+    }
+    VirtualCallResolver::ResolveVirtualCalls(*M, virtualCallTargets);
+    if (DEBUG) {
+        LOG("Resolved virtual call targets:");
+        virtualCallTargets.dump();
+    }
+
+    for (Module::iterator f = M->begin(), fe = M->end(); f != fe; ++f) {
+        Function *F = &*f;
+        for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; ++i) {
+            if (CallBase *CI = dyn_cast<CallBase>(&*i)) {
+                if (CI->isIndirectCall()) {
+                    FuncSet FS;
+                    getVirtualFunctionCandidates(CI, virtualCallTargets, FS);
+                    for (Function *Callee : FS) {
+                        printCallGraphRow(CI, Callee, "indirect", "MLTA");
+                    }
+                }
+            }
+        }
+    }
 }
