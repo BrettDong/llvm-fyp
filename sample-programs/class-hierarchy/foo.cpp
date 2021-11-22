@@ -1,10 +1,18 @@
 class Shape {
    public:
     virtual ~Shape() = default;
-    virtual double Area(double x) = 0;
+    virtual double Area(double x) { return 0.0; }
 };
 
-class Square : public Shape {
+class Rectangle : public Shape {
+   public:
+    virtual ~Rectangle() = default;
+    virtual double Area(double x) override;
+};
+
+double Rectangle::Area(double x) { return x * x; }
+
+class Square : public Rectangle {
    public:
     double Area(double x) override;
 };
@@ -23,7 +31,7 @@ double foo(Shape *shape, double x) {
     return answer;
 }
 
-double goo(Square *shape, double x) {
+double goo(Rectangle *shape, double x) {
     double answer = shape->Area(x);
     return answer;
 }
