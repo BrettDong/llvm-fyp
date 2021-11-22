@@ -1,6 +1,7 @@
 #include <filesystem>
 
 #include "Common.hpp"
+#include "mlta/CallGraph.h"
 
 static cl::opt<std::string> BitcodeFilesDir(
     cl::Positional, cl::desc("[The directory that contains bitcode files.]"), cl::Required);
@@ -82,8 +83,13 @@ int main(int argc, char **argv) {
     unique_ptr<LLVMContext> llvmContext = make_unique<LLVMContext>();
     SMDiagnostic err;
 
+    GlobalContext globalCtx;
+
+    vector<string> bitcodeFiles;
+
     for (const auto &it : filesystem::recursive_directory_iterator(BitcodeFilesDir.getValue())) {
         if (it.path().extension() == ".bc") {
+            bitcodeFiles.push_back(it.path());
             outs() << "Reading bitcode file: " << it.path() << "\n";
             unique_ptr<Module> module = parseIRFile(it.path().string(), err, *llvmContext);
             if (!module) {
@@ -91,8 +97,18 @@ int main(int argc, char **argv) {
                        << "\n";
                 continue;
             }
-            analyzeModule(module.get());
+            Module *m = module.release();
+            string name = it.path().filename().string();
+            globalCtx.Modules.emplace_back(m, name);
         }
+    }
+
+    CallGraphPass CGPass(&globalCtx);
+    CGPass.run(globalCtx.Modules);
+
+    // Need to compile subject program with -fwhole-program-vtables -flto -fvisibility=default
+    for (const string &bitcodeFile : bitcodeFiles) {
+        CGPass.resolveVirtualCallTargets(bitcodeFile);
     }
 
     return 0;
