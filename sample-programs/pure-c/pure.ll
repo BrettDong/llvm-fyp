@@ -4,12 +4,9 @@ target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
 target triple = "arm64-apple-macosx11.0.0"
 
 %struct.structA = type { i32 (i32, i32)* }
-%struct.structB = type { i32 (i32, i32)*, %struct.structA }
-%struct.structC = type { i32 (i32, i32)*, %struct.structA, %struct.structB }
 
 @__const.funcZ.a = private unnamed_addr constant %struct.structA { i32 (i32, i32)* @funcA }, align 8
-@__const.funcZ.b = private unnamed_addr constant %struct.structB { i32 (i32, i32)* @funcB, %struct.structA { i32 (i32, i32)* @funcD } }, align 8
-@__const.funcZ.c = private unnamed_addr constant %struct.structC { i32 (i32, i32)* @funcC, %struct.structA { i32 (i32, i32)* @funcE }, %struct.structB { i32 (i32, i32)* @funcF, %struct.structA { i32 (i32, i32)* @funcG } } }, align 8
+@__const.funcZ.a2 = private unnamed_addr constant %struct.structA { i32 (i32, i32)* @funcB }, align 8
 
 ; Function Attrs: noinline nounwind optnone ssp uwtable
 define i32 @funcA(i32 %0, i32 %1) #0 {
@@ -104,21 +101,41 @@ define i32 @funcG(i32 %0, i32 %1) #0 {
 }
 
 ; Function Attrs: noinline nounwind optnone ssp uwtable
+define i32 @funcX(i32 (i32, i32)* %0, i32 %1, i32 %2) #0 {
+  %4 = alloca i32 (i32, i32)*, align 8
+  %5 = alloca i32, align 4
+  %6 = alloca i32, align 4
+  store i32 (i32, i32)* %0, i32 (i32, i32)** %4, align 8
+  store i32 %1, i32* %5, align 4
+  store i32 %2, i32* %6, align 4
+  %7 = load i32 (i32, i32)*, i32 (i32, i32)** %4, align 8
+  %8 = load i32, i32* %5, align 4
+  %9 = load i32, i32* %6, align 4
+  %10 = call i32 %7(i32 %8, i32 %9)
+  ret i32 %10
+}
+
+; Function Attrs: noinline nounwind optnone ssp uwtable
+define i32 @funcY() #0 {
+  %1 = alloca i32 (i32, i32)*, align 8
+  store i32 (i32, i32)* @funcA, i32 (i32, i32)** %1, align 8
+  %2 = load i32 (i32, i32)*, i32 (i32, i32)** %1, align 8
+  %3 = call i32 @funcX(i32 (i32, i32)* %2, i32 2, i32 3)
+  ret i32 %3
+}
+
+; Function Attrs: noinline nounwind optnone ssp uwtable
 define i32 @funcZ() #0 {
   %1 = alloca %struct.structA, align 8
-  %2 = alloca %struct.structB, align 8
-  %3 = alloca %struct.structC, align 8
-  %4 = bitcast %struct.structA* %1 to i8*
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %4, i8* align 8 bitcast (%struct.structA* @__const.funcZ.a to i8*), i64 8, i1 false)
-  %5 = bitcast %struct.structB* %2 to i8*
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %5, i8* align 8 bitcast (%struct.structB* @__const.funcZ.b to i8*), i64 16, i1 false)
-  %6 = bitcast %struct.structC* %3 to i8*
-  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %6, i8* align 8 bitcast (%struct.structC* @__const.funcZ.c to i8*), i64 32, i1 false)
-  %7 = getelementptr inbounds %struct.structB, %struct.structB* %2, i32 0, i32 1
-  %8 = getelementptr inbounds %struct.structA, %struct.structA* %7, i32 0, i32 0
-  %9 = load i32 (i32, i32)*, i32 (i32, i32)** %8, align 8
-  %10 = call i32 %9(i32 2, i32 3)
-  ret i32 %10
+  %2 = alloca %struct.structA, align 8
+  %3 = bitcast %struct.structA* %1 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %3, i8* align 8 bitcast (%struct.structA* @__const.funcZ.a to i8*), i64 8, i1 false)
+  %4 = bitcast %struct.structA* %2 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %4, i8* align 8 bitcast (%struct.structA* @__const.funcZ.a2 to i8*), i64 8, i1 false)
+  %5 = getelementptr inbounds %struct.structA, %struct.structA* %1, i32 0, i32 0
+  %6 = load i32 (i32, i32)*, i32 (i32, i32)** %5, align 8
+  %7 = call i32 %6(i32 2, i32 3)
+  ret i32 %7
 }
 
 ; Function Attrs: argmemonly nofree nounwind willreturn
