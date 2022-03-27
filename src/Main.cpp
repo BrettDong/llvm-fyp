@@ -1,7 +1,7 @@
 #include <filesystem>
 
+#include "ClassAnalyzer.h"
 #include "Common.hpp"
-#include "ModuleReader.h"
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -25,18 +25,31 @@ int main(int argc, char **argv) {
     SMDiagnostic err;
 
     std::sort(bitcodeFiles.begin(), bitcodeFiles.end());
-    map<string, int> types;
+    map<string, unique_ptr<Module>> modules;
+    ClassAnalyzer classAnalyzer;
 
-    for (const string &it : bitcodeFiles) {
-        outs() << "Reading bitcode file: " << it << "\n";
-        unique_ptr<Module> module = parseIRFile(it, err, *llvmContext);
+    for (const string &file : bitcodeFiles) {
+        outs() << "Reading bitcode file: " << file << "\n";
+        unique_ptr<Module> module = parseIRFile(file, err, *llvmContext);
         if (!module) {
-            errs() << "Error loading bitcode file \"" << it << "\": " << err.getMessage() << "\n";
+            errs() << "Error loading bitcode file \"" << file << "\": " << err.getMessage() << "\n";
             continue;
         }
-        ModuleReader reader;
-        reader.analyzeModule(module.get());
-        reader.dump();
+        modules[file] = std::move(module);
+    }
+
+    for (const auto &[string, module] : modules) {
+        classAnalyzer.analyzeModule(module.get());
+    }
+
+    ClassHierarchyGraph graph = classAnalyzer.buildClassHierarchyGraph();
+
+    for (const std::string &className : classAnalyzer.getClasses()) {
+        set<string> derivedClasses = graph.queryDerivedClasses(className);
+        if (!derivedClasses.empty()) {
+            outs() << "class " << className << " has " << derivedClasses.size()
+                   << " derived classes.\n";
+        }
     }
 
     return 0;

@@ -1,22 +1,22 @@
-#include "ModuleReader.h"
+#include "ClassAnalyzer.h"
 
 #include "Utils.h"
 
-void ModuleReader::addClassMethod(const string &className, const string &functionName) {
+void ClassAnalyzer::addClassMethod(const string &className, const string &functionName) {
     if (classMethods.count(className) == 0) {
         classMethods[className] = set<string>();
     }
     classMethods[className].insert(functionName);
 }
 
-void ModuleReader::addClassParent(const string &className, const string &parentClassName) {
+void ClassAnalyzer::addClassParent(const string &className, const string &parentClassName) {
     if (classParents.count(className) == 0) {
         classParents[className] = set<string>();
     }
     classParents[className].insert(parentClassName);
 }
 
-void ModuleReader::decodeVTable(const std::string &className, const Constant *initializer) {
+void ClassAnalyzer::decodeVTable(const std::string &className, const Constant *initializer) {
     const auto *aggregate = dyn_cast<ConstantAggregate>(initializer);
     if (aggregate == nullptr) {
         return;
@@ -40,7 +40,7 @@ void ModuleReader::decodeVTable(const std::string &className, const Constant *in
     }
 }
 
-void ModuleReader::decodeRTTI(const std::string &className, const Constant *initializer) {
+void ClassAnalyzer::decodeRTTI(const std::string &className, const Constant *initializer) {
     const auto *aggregate = dyn_cast<ConstantAggregate>(initializer);
     if (aggregate == nullptr) {
         return;
@@ -62,7 +62,18 @@ void ModuleReader::decodeRTTI(const std::string &className, const Constant *init
     }
 }
 
-void ModuleReader::analyzeModule(Module *module) {
+const set<string> &ClassAnalyzer::getClasses() const { return classNames; }
+
+const set<string> &ClassAnalyzer::getMethodsOfClass(const std::string &className) const {
+    static set<string> empty_set;
+    try {
+        return classMethods.at(className);
+    } catch (std::out_of_range &e) {
+        return empty_set;
+    }
+}
+
+void ClassAnalyzer::analyzeModule(Module *module) {
     for (const GlobalVariable &variable : module->getGlobalList()) {
         if (variable.hasInitializer()) {
             const std::string name = demangle(variable.getName().str());
@@ -87,7 +98,7 @@ void ModuleReader::analyzeModule(Module *module) {
     }
 }
 
-void ModuleReader::dump() {
+void ClassAnalyzer::dump() {
     for (const string &className : classNames) {
         outs() << "class " << className << "\n";
         for (const string &parent : classParents[className]) {
@@ -98,4 +109,15 @@ void ModuleReader::dump() {
         }
         outs() << "\n";
     }
+}
+
+ClassHierarchyGraph ClassAnalyzer::buildClassHierarchyGraph() const {
+    ClassHierarchyGraph graph;
+    for (const string &className : classNames) {
+        if (classParents.count(className) == 0) continue;
+        for (const string &parent : classParents.at(className)) {
+            graph.addRelationship(parent, className);
+        }
+    }
+    return graph;
 }

@@ -1,7 +1,8 @@
 set(SOURCE
+        ClassAnalyzer.cpp
+        ClassHierarchyGraph.cpp
         Common.hpp
         Main.cpp
-        ModuleReader.cpp
         Utils.cpp
         )
 

@@ -1,10 +1,11 @@
 #pragma once
-#ifndef LLVM_FYP_MODULEREADER_H
-#define LLVM_FYP_MODULEREADER_H
+#ifndef CLASS_ANALYZER_H
+#define CLASS_ANALYZER_H
 
+#include "ClassHierarchyGraph.h"
 #include "Common.hpp"
 
-class ModuleReader {
+class ClassAnalyzer {
    private:
     set<string> classNames;
     map<string, set<string>> classMethods;
@@ -17,8 +18,12 @@ class ModuleReader {
     void decodeRTTI(const std::string &className, const Constant *initializer);
 
    public:
+    [[nodiscard]] const set<string> &getClasses() const;
+    [[nodiscard]] const set<string> &getMethodsOfClass(const std::string &className) const;
+
     void analyzeModule(Module *m);
     void dump();
+    [[nodiscard]] ClassHierarchyGraph buildClassHierarchyGraph() const;
 };
 
-#endif  // LLVM_FYP_MODULEREADER_H
+#endif  // CLASS_ANALYZER_H
