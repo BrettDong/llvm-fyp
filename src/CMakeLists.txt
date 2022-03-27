@@ -1,14 +1,8 @@
 set(SOURCE
         Common.hpp
         Main.cpp
-        mlta/Analyzer.h
-        mlta/Analyzer.cpp
-        mlta/Common.h
-        mlta/Common.cpp
-        mlta/CallGraph.h
-        mlta/CallGraph.cpp
-        mlta/VirtualCallTargets.h
-        mlta/VirtualCallTargets.cpp
+        ModuleReader.cpp
+        Utils.cpp
         )
 
 add_executable(Analyzer ${SOURCE})
