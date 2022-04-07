@@ -18,7 +18,7 @@ class Analyzer {
    private:
     std::optional<int> getVTableIndex(const CallInst *callInst) const;
     std::optional<string> getVirtCallType(const CallInst *callInst) const;
-    void analyzeVirtCall(const CallInst *callInst);
+    std::set<string> analyzeVirtCall(const CallInst *callInst);
     void analyzeFunction(const Function &f);
 
    public:

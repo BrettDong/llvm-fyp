@@ -34,22 +34,29 @@ std::optional<string> Analyzer::getVirtCallType(const CallInst *callInst) const 
     return className;
 }
 
-void Analyzer::analyzeVirtCall(const CallInst *callInst) {
+set<string> Analyzer::analyzeVirtCall(const CallInst *callInst) {
     auto index = getVTableIndex(callInst);
     if (!index.has_value()) {
-        outs() << "cannot get vtable index" << '\n';
-        return;
+        // outs() << "cannot get vtable index" << '\n';
+        return set<string>();
     }
     auto type = getVirtCallType(callInst);
     if (!type.has_value()) {
-        outs() << "cannot get virt call type" << '\n';
-        return;
+        // outs() << "cannot get virt call type" << '\n';
+        return set<string>();
     }
     set<string> derivedClasses = classes.getHierarchyGraph().queryDerivedClasses(type.value());
+    derivedClasses.insert(type.value());
+    set<string> targets;
     for (const string &derived : derivedClasses) {
         Function *target = classes.getClass(derived).getVTable()->getEntry(index.value());
-        outs() << " -> " << demangle(target->getName().str()) << '\n';
+        targets.insert(demangle(target->getName().str()));
     }
+    auto pure_virtual = targets.find("__cxa_pure_virtual");
+    if (pure_virtual != targets.end()) {
+        targets.erase(pure_virtual);
+    }
+    return targets;
 }
 
 void Analyzer::analyzeFunction(const Function &f) {
@@ -60,8 +67,17 @@ void Analyzer::analyzeFunction(const Function &f) {
                     outs() << demangle(f.getName().str()) << " =(D)=> "
                            << demangle(callee->getName().str()) << '\n';
                 } else {
-                    outs() << demangle(f.getName().str()) << " =(I)=> ?\n";
-                    analyzeVirtCall(callInst);
+                    set<string> targets = analyzeVirtCall(callInst);
+                    if (targets.empty()) {
+                        /*outs() << "Failed at " << *callInst << " in function "
+                               << demangle(f.getName().str()) << '\n';*/
+                    } else {
+                        outs() << "Indirect call " << callInst << " has " << targets.size()
+                               << " targets:\n";
+                        for (auto &target : targets) {
+                            outs() << demangle(f.getName().str()) << " =(I)=> " << target << "\n";
+                        }
+                    }
                 }
             }
         }
