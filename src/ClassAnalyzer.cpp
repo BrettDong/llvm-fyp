@@ -2,6 +2,10 @@
 
 #include "Utils.h"
 
+bool ClassAnalyzer::isClassExist(const std::string &className) const {
+    return classes.count(className) != 0;
+}
+
 const ClassInfo &ClassAnalyzer::getClass(const std::string &className) const {
     return classes.at(className);
 }

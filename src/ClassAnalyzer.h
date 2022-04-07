@@ -13,13 +13,15 @@ class ClassAnalyzer {
     ClassHierarchyGraph hierarchy;
 
    public:
+    [[nodiscard]] bool isClassExist(const std::string &className) const;
     [[nodiscard]] const ClassInfo &getClass(const std::string &className) const;
 
     void analyzeModule(Module *m);
 
     void buildClassHierarchyGraph();
 
-    const ClassHierarchyGraph &getHierarchyGraph() const { return hierarchy; }
+    [[nodiscard]] const std::map<std::string, ClassInfo> &getAllClasses() const { return classes; }
+    [[nodiscard]] const ClassHierarchyGraph &getHierarchyGraph() const { return hierarchy; }
 };
 
 #endif  // CLASS_ANALYZER_H

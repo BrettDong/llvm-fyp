@@ -26,6 +26,11 @@ std::optional<string> Analyzer::getVirtCallType(const CallInst *callInst) const 
     } else if (beginsWith(className, "struct.")) {
         className = removePrefix(className, "struct.");
     }
+    className = stripTrailing(className);
+    if (!classes.isClassExist(className)) {
+        // outs() << "Non-existing class name " << className << '\n';
+        return std::nullopt;
+    }
     return className;
 }
 
