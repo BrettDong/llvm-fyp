@@ -2,14 +2,6 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
 
-#include <fstream>
-#include <regex>
-#include <set>
-#include <sstream>
-#include <thread>
-#include <tuple>
-#include <unordered_map>
-
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/Statistic.h>
@@ -53,9 +45,19 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 
+#include <filesystem>
+#include <fstream>
+#include <optional>
+#include <regex>
+#include <set>
+#include <sstream>
+#include <thread>
+#include <tuple>
+#include <unordered_map>
+
 using namespace llvm;
 using namespace std;
 
 #define MAX_THREAD_NUM std::thread::hardware_concurrency() * 2
 
-#endif // _COMMON_H_
+#endif  // _COMMON_H_

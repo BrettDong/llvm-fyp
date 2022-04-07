@@ -1,7 +1,4 @@
-#include <filesystem>
-
-#include "ClassAnalyzer.h"
-#include "Common.hpp"
+#include "Analyzer.h"
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -21,36 +18,8 @@ int main(int argc, char **argv) {
         bitcodeFiles.emplace_back(argv[1]);
     }
 
-    unique_ptr<LLVMContext> llvmContext = make_unique<LLVMContext>();
-    SMDiagnostic err;
-
     std::sort(bitcodeFiles.begin(), bitcodeFiles.end());
-    map<string, unique_ptr<Module>> modules;
-    ClassAnalyzer classAnalyzer;
-
-    for (const string &file : bitcodeFiles) {
-        outs() << "Reading bitcode file: " << file << "\n";
-        unique_ptr<Module> module = parseIRFile(file, err, *llvmContext);
-        if (!module) {
-            errs() << "Error loading bitcode file \"" << file << "\": " << err.getMessage() << "\n";
-            continue;
-        }
-        modules[file] = std::move(module);
-    }
-
-    for (const auto &[string, module] : modules) {
-        classAnalyzer.analyzeModule(module.get());
-    }
-
-    ClassHierarchyGraph graph = classAnalyzer.buildClassHierarchyGraph();
-
-    for (const std::string &className : classAnalyzer.getClasses()) {
-        set<string> derivedClasses = graph.queryDerivedClasses(className);
-        if (!derivedClasses.empty()) {
-            outs() << "class " << className << " has " << derivedClasses.size()
-                   << " derived classes.\n";
-        }
-    }
-
+    Analyzer analyzer;
+    analyzer.analyze(bitcodeFiles);
     return 0;
 }

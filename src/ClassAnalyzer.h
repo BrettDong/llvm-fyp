@@ -3,27 +3,23 @@
 #define CLASS_ANALYZER_H
 
 #include "ClassHierarchyGraph.h"
+#include "ClassInfo.h"
 #include "Common.hpp"
+#include "VTable.h"
 
 class ClassAnalyzer {
    private:
-    set<string> classNames;
-    map<string, set<string>> classMethods;
-    map<string, set<string>> classParents;
-
-    void addClassMethod(const std::string &className, const std::string &functionName);
-    void addClassParent(const std::string &className, const std::string &parentClassName);
-
-    void decodeVTable(const std::string &className, const Constant *initializer);
-    void decodeRTTI(const std::string &className, const Constant *initializer);
+    std::map<std::string, ClassInfo> classes;
+    ClassHierarchyGraph hierarchy;
 
    public:
-    [[nodiscard]] const set<string> &getClasses() const;
-    [[nodiscard]] const set<string> &getMethodsOfClass(const std::string &className) const;
+    [[nodiscard]] const ClassInfo &getClass(const std::string &className) const;
 
     void analyzeModule(Module *m);
-    void dump();
-    [[nodiscard]] ClassHierarchyGraph buildClassHierarchyGraph() const;
+
+    void buildClassHierarchyGraph();
+
+    const ClassHierarchyGraph &getHierarchyGraph() const { return hierarchy; }
 };
 
 #endif  // CLASS_ANALYZER_H

@@ -1,9 +1,12 @@
 set(SOURCE
+        Analyzer.cpp
         ClassAnalyzer.cpp
         ClassHierarchyGraph.cpp
+        ClassInfo.cpp
         Common.hpp
         Main.cpp
         Utils.cpp
+        VTable.cpp
         )
 
 add_executable(Analyzer ${SOURCE})
