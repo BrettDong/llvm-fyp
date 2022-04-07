@@ -2,7 +2,7 @@
 
 #include "Utils.h"
 
-std::optional<int> Analyzer::getVTableIndex(const CallInst *callInst) const {
+std::optional<int> Analyzer::getVTableIndex(const CallBase *callInst) const {
     const LoadInst *loadInst = dyn_cast<LoadInst>(callInst->getCalledOperand());
     if (loadInst == nullptr) return std::nullopt;
 
@@ -15,7 +15,7 @@ std::optional<int> Analyzer::getVTableIndex(const CallInst *callInst) const {
     return index->getZExtValue();
 }
 
-std::optional<string> Analyzer::getVirtCallType(const CallInst *callInst) const {
+std::optional<string> Analyzer::getVirtCallType(const CallBase *callInst) const {
     const Type *op0Ty = callInst->getArgOperand(0)->getType();
     if (op0Ty == nullptr) return std::nullopt;
     const StructType *ty = dyn_cast<StructType>(op0Ty->getPointerElementType());
@@ -34,7 +34,7 @@ std::optional<string> Analyzer::getVirtCallType(const CallInst *callInst) const 
     return className;
 }
 
-set<string> Analyzer::analyzeVirtCall(const CallInst *callInst) {
+set<string> Analyzer::analyzeVirtCall(const CallBase *callInst) {
     auto index = getVTableIndex(callInst);
     if (!index.has_value()) {
         // outs() << "cannot get vtable index" << '\n';
@@ -62,7 +62,7 @@ set<string> Analyzer::analyzeVirtCall(const CallInst *callInst) {
 void Analyzer::analyzeFunction(const Function &f) {
     for (auto &bb : f) {
         for (auto &inst : bb) {
-            if (auto callInst = dyn_cast<CallInst>(&inst)) {
+            if (auto callInst = dyn_cast<CallBase>(&inst)) {
                 if (const Function *callee = callInst->getCalledFunction()) {
                     outs() << demangle(f.getName().str()) << " =(D)=> "
                            << demangle(callee->getName().str()) << '\n';

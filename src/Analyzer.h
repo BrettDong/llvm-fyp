@@ -16,15 +16,15 @@ class Analyzer {
     ClassAnalyzer classes;
 
    private:
-    std::optional<int> getVTableIndex(const CallInst *callInst) const;
-    std::optional<string> getVirtCallType(const CallInst *callInst) const;
-    std::set<string> analyzeVirtCall(const CallInst *callInst);
+    std::optional<int> getVTableIndex(const CallBase *callInst) const;
+    std::optional<string> getVirtCallType(const CallBase *callInst) const;
+    std::set<string> analyzeVirtCall(const CallBase *callInst);
     void analyzeFunction(const Function &f);
 
    public:
     Analyzer();
 
-    void analyze(const vector<string>& files);
+    void analyze(const vector<string> &files);
 };
 
 #endif
