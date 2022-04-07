@@ -24,7 +24,7 @@ class Analyzer {
    public:
     Analyzer();
 
-    void analyze(vector<string> files);
+    void analyze(const vector<string>& files);
 };
 
 #endif

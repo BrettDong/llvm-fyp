@@ -65,7 +65,7 @@ void Analyzer::analyzeFunction(const Function &f) {
 
 Analyzer::Analyzer() { llvmContext = make_unique<LLVMContext>(); }
 
-void Analyzer::analyze(vector<string> files) {
+void Analyzer::analyze(const vector<string> &files) {
     for (const string &file : files) {
         outs() << "Reading bitcode file: " << file << "\n";
         unique_ptr<Module> module = parseIRFile(file, err, *llvmContext);
