@@ -40,15 +40,15 @@ void FunctionObjectFlow::addInstantiation(const Value *dst, const string &classN
 
 void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
     const auto *callBase = dyn_cast<CallBase>(inst);
-    outs() << "CALL/INVOKE " << inst << " <- " << callBase->getOperand(0) << '\n';
+    // outs() << "CALL/INVOKE " << inst << " <- " << callBase->getOperand(0) << '\n';
     bool constructor = false;
     bool system = false;
     if (auto callee = callBase->getCalledFunction()) {
         string demangled = demangle(callee->getName().str());
-        outs() << "     (" << demangled << ")\n";
+        // outs() << "     (" << demangled << ")\n";
         if (isConstructor(demangled)) {
             constructor = true;
-            outs() << "     [ CONSTRUCTOR ]\n";
+            // outs() << "     [ CONSTRUCTOR ]\n";
             addInstantiation(callBase->getOperand(0), getConstructorClassName(demangled));
         }
         if (beginsWith(demangled, "operator new") || beginsWith(demangled, "llvm.memset")) {
@@ -56,7 +56,7 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
         }
     }
     if (!constructor && !system) {
-        outs() << "adding " << inst << " to ret val set: " << *inst << '\n';
+        // outs() << "adding " << inst << " to ret val set: " << *inst << '\n';
         retVals.insert(inst);
     }
 }
@@ -73,28 +73,28 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
             switch (inst.getOpcode()) {
                 case Instruction::Alloca: {
                     alloca.insert(&inst);
-                    outs() << "ALLOCA " << &inst << '\n';
+                    // outs() << "ALLOCA " << &inst << '\n';
                     break;
                 }
                 case Instruction::Load: {
                     if (inst.getType()->isPointerTy()) {
                         addEdge(inst.getOperand(0), &inst);
-                        outs() << "LOAD " << &inst << " <- " << inst.getOperand(0) << '\n';
+                        // outs() << "LOAD " << &inst << " <- " << inst.getOperand(0) << '\n';
                     }
                     break;
                 }
                 case Instruction::Store: {
                     if (inst.getOperand(0)->getType()->isPointerTy()) {
                         addEdge(inst.getOperand(0), inst.getOperand(1));
-                        outs() << "STORE " << inst.getOperand(1) << " <- " << inst.getOperand(0)
-                               << '\n';
+                        // outs() << "STORE " << inst.getOperand(1) << " <- " << inst.getOperand(0)
+                        // << '\n';
                     }
                     break;
                 }
                 case Instruction::BitCast: {
                     if (inst.getType()->isPointerTy()) {
                         addEdge(inst.getOperand(0), &inst);
-                        outs() << "BITCAST " << &inst << " <- " << inst.getOperand(0) << '\n';
+                        // outs() << "BITCAST " << &inst << " <- " << inst.getOperand(0) << '\n';
                     }
                     break;
                 }
@@ -104,14 +104,15 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                     break;
                 }
                 default: {
-                    outs() << "Unknown opcode " << inst.getOpcodeName() << '\n';
+                    // outs() << "Unknown opcode " << inst.getOpcodeName() << '\n';
                 }
             }
         }
     }
 }
 
-void FunctionObjectFlow::traverseBack(const Value *val) {
+ObjectFlowOrigin FunctionObjectFlow::traverseBack(const Value *val) {
+    ObjectFlowOrigin answer;
     queue<const Value *> q;
     set<const Value *> visited;
     set<string> result;
@@ -123,31 +124,36 @@ void FunctionObjectFlow::traverseBack(const Value *val) {
 
         auto instantiation = instantiations.find(cur);
         if (instantiation != instantiations.end()) {
+            answer.instantiated = true;
             for (const string &className : instantiation->second) {
-                outs() << "instantiated " << className << '\n';
+                // outs() << "instantiated " << className << '\n';
             }
         }
 
         if (alloca.count(cur) != 0) {
-            outs() << "reached alloca." << '\n';
+            // outs() << "reached alloca." << '\n';
         }
 
         if (std::find(arguments.begin(), arguments.end(), cur) != arguments.end()) {
-            outs() << "from a function argument." << '\n';
+            answer.argument = true;
+            // outs() << "from a function argument." << '\n';
         }
 
         if (retVals.count(cur) != 0) {
-            outs() << cur << " is from return value from another function." << '\n';
+            answer.retVal = true;
+            // outs() << cur << " is from return value from another function." << '\n';
         }
 
         auto edge = edges.find(cur);
         if (edge != edges.end()) {
             for (const Value *src : edge->second) {
                 if (visited.count(src) == 0) {
-                    outs() << cur << " <- " << src << '\n';
+                    // outs() << cur << " <- " << src << '\n';
                     q.push(src);
                 }
             }
         }
     }
+
+    return answer;
 }

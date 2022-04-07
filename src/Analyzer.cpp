@@ -67,24 +67,29 @@ void Analyzer::analyzeFunction(const Function &f) {
     for (auto &bb : f) {
         for (auto &inst : bb) {
             if (auto callInst = dyn_cast<CallBase>(&inst)) {
-                if (const Function *callee = callInst->getCalledFunction()) {
-                    // outs() << demangle(f.getName().str()) << " =(D)=> "
-                    //        << demangle(callee->getName().str()) << '\n';
-                } else {
-                    outs() << "== indirect call " << callInst->getOperand(0) << '\n';
-                    flow.traverseBack(callInst->getOperand(0));
-                    /*
+                if (callInst->getCalledFunction() == nullptr) {
                     set<string> targets = analyzeVirtCall(callInst);
-                    if (targets.empty()) {
-                        outs() << "Failed at " << *callInst << " in function "
-                               << demangle(f.getName().str()) << '\n';
-                    } else {
+                    if (!targets.empty()) {
+                        const Value *obj = callInst->getOperand(0);
+                        ObjectFlowOrigin origin = flow.traverseBack(obj);
                         outs() << "Indirect call " << callInst << " has " << targets.size()
                                << " targets:\n";
                         for (auto &target : targets) {
                             outs() << demangle(f.getName().str()) << " =(I)=> " << target << "\n";
                         }
-                    }*/
+                        outs() << "Object origin: ";
+                        if (origin.argument) {
+                            outs() << "[arg]";
+                        }
+                        if (origin.instantiated) {
+                            outs() << "[instantiated]";
+                        }
+                        if (origin.retVal) {
+                            outs() << "[ret-val]";
+                        }
+                        outs() << '\n';
+                        outs() << '\n';
+                    }
                 }
             }
         }
@@ -121,8 +126,8 @@ void Analyzer::analyze(const vector<string> &files) {
 
     // outs() << "Analyzing main function" << '\n';
     // analyzeFunction(*functions["_Z3fooP5Shaped"]);
-    analyzeFunction(*functions["main"]);
-    /*for (auto it : functions) {
+    // analyzeFunction(*functions["main"]);
+    for (auto it : functions) {
         analyzeFunction(*it.second);
-    }*/
+    }
 }

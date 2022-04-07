@@ -4,6 +4,12 @@
 
 #include "Common.hpp"
 
+struct ObjectFlowOrigin {
+    bool argument = false;
+    bool retVal = false;
+    bool instantiated = false;
+};
+
 class FunctionObjectFlow {
    private:
     vector<const Value *> arguments;
@@ -22,7 +28,7 @@ class FunctionObjectFlow {
    public:
     void analyzeFunction(const Function *f);
 
-    void traverseBack(const Value *val);
+    ObjectFlowOrigin traverseBack(const Value *val);
 };
 
 #endif  // FUNCTION_OBJECT_FLOW_H
