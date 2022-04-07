@@ -21,4 +21,4 @@ jobs:
           cmake --build build
       - name: Run
         run: |
-          ./build/src/Analyzer ./sample-programs/pure-c
+          ./build/src/Analyzer ./sample-programs/class-hierarchy
