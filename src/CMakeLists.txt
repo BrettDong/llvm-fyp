@@ -4,6 +4,7 @@ set(SOURCE
         ClassHierarchyGraph.cpp
         ClassInfo.cpp
         Common.hpp
+        FunctionObjectFlow.cpp
         Main.cpp
         Utils.cpp
         VTable.cpp

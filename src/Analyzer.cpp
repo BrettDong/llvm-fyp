@@ -1,5 +1,6 @@
 #include "Analyzer.h"
 
+#include "FunctionObjectFlow.h"
 #include "Utils.h"
 
 std::optional<int> Analyzer::getVTableIndex(const CallBase *callInst) const {
@@ -60,24 +61,30 @@ set<string> Analyzer::analyzeVirtCall(const CallBase *callInst) {
 }
 
 void Analyzer::analyzeFunction(const Function &f) {
+    FunctionObjectFlow flow;
+    flow.analyzeFunction(&f);
+
     for (auto &bb : f) {
         for (auto &inst : bb) {
             if (auto callInst = dyn_cast<CallBase>(&inst)) {
                 if (const Function *callee = callInst->getCalledFunction()) {
-                    outs() << demangle(f.getName().str()) << " =(D)=> "
-                           << demangle(callee->getName().str()) << '\n';
+                    // outs() << demangle(f.getName().str()) << " =(D)=> "
+                    //        << demangle(callee->getName().str()) << '\n';
                 } else {
+                    outs() << "== indirect call " << callInst->getOperand(0) << '\n';
+                    flow.traverseBack(callInst->getOperand(0));
+                    /*
                     set<string> targets = analyzeVirtCall(callInst);
                     if (targets.empty()) {
-                        /*outs() << "Failed at " << *callInst << " in function "
-                               << demangle(f.getName().str()) << '\n';*/
+                        outs() << "Failed at " << *callInst << " in function "
+                               << demangle(f.getName().str()) << '\n';
                     } else {
                         outs() << "Indirect call " << callInst << " has " << targets.size()
                                << " targets:\n";
                         for (auto &target : targets) {
                             outs() << demangle(f.getName().str()) << " =(I)=> " << target << "\n";
                         }
-                    }
+                    }*/
                 }
             }
         }
@@ -88,7 +95,7 @@ Analyzer::Analyzer() { llvmContext = make_unique<LLVMContext>(); }
 
 void Analyzer::analyze(const vector<string> &files) {
     for (const string &file : files) {
-        outs() << "Reading bitcode file: " << file << "\n";
+        // outs() << "Reading bitcode file: " << file << "\n";
         unique_ptr<Module> module = parseIRFile(file, err, *llvmContext);
         if (!module) {
             errs() << "Error loading bitcode file \"" << file << "\": " << err.getMessage() << "\n";
@@ -98,7 +105,7 @@ void Analyzer::analyze(const vector<string> &files) {
     }
 
     for (const auto &[file, module] : modules) {
-        outs() << "Decoding class information from " << file << '\n';
+        // outs() << "Decoding class information from " << file << '\n';
         classes.analyzeModule(module.get());
     }
 
@@ -106,12 +113,16 @@ void Analyzer::analyze(const vector<string> &files) {
     classes.buildClassHierarchyGraph();
 
     for (const auto &[file, module] : modules) {
-        outs() << "Decoding functions from " << file << '\n';
+        // outs() << "Decoding functions from " << file << '\n';
         for (const Function &f : *module) {
             functions[f.getName().str()] = &f;
         }
     }
 
-    outs() << "Analyzing main function" << '\n';
+    // outs() << "Analyzing main function" << '\n';
+    // analyzeFunction(*functions["_Z3fooP5Shaped"]);
     analyzeFunction(*functions["main"]);
+    /*for (auto it : functions) {
+        analyzeFunction(*it.second);
+    }*/
 }
