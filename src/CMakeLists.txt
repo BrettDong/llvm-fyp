@@ -4,6 +4,7 @@ set(SOURCE
         ClassHierarchyGraph.cpp
         ClassInfo.cpp
         Common.hpp
+        ConstraintSolver.cpp
         FunctionObjectFlow.cpp
         Main.cpp
         Utils.cpp

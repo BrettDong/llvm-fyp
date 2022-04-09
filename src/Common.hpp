@@ -47,13 +47,16 @@
 
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <optional>
+#include <queue>
 #include <regex>
 #include <set>
 #include <sstream>
 #include <thread>
 #include <tuple>
 #include <unordered_map>
+#include <vector>
 
 using namespace llvm;
 using namespace std;
