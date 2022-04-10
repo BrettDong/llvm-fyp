@@ -35,6 +35,14 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
     // outs() << "CALL/INVOKE " << inst << " <- " << callBase->getOperand(0) << '\n';
     bool constructor = false;
     bool system = false;
+    if (inst->getType()->isPointerTy() && inst->getType()->getPointerElementType()->isStructTy()) {
+        auto ty = inst->getType()->getPointerElementType();
+        string className = stripClassName(ty->getStructName().str());
+        solver.addLiteralConstraint(
+            dyn_cast<Value>(inst),
+            classes->getHierarchyGraph().querySelfWithDerivedClasses(className),
+            SetConstraintType::Superset);
+    }
     if (auto callee = callBase->getCalledFunction()) {
         string demangled = demangle(callee->getName().str());
         // outs() << "     (" << demangled << ")\n";
@@ -64,7 +72,14 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
     for (size_t i = 0; i < f->arg_size(); i++) {
         const Argument *arg = f->getArg(i);
         arguments.emplace_back(arg);
-        if (arg->getType()->isPointerTy()) {
+        if (arg->getType()->isPointerTy() &&
+            arg->getType()->getPointerElementType()->isStructTy()) {
+            auto ty = arg->getType()->getPointerElementType();
+            string className = stripClassName(ty->getStructName().str());
+            solver.addLiteralConstraint(
+                dyn_cast<Value>(arg),
+                classes->getHierarchyGraph().querySelfWithDerivedClasses(className),
+                SetConstraintType::Superset);
             // argumentTypes.insert({i, arg->getType()->getPointerElementType()});
         }
     }
