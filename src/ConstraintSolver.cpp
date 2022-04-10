@@ -103,6 +103,7 @@ static bool isSubsetOf(const set<string> &a, const set<string> &b) {
 
 bool ConstraintSolverV1::sanityCheck() {
     queue<NodeID> q;
+    set<NodeID> visited;
     for (const NodeID &node : system->nodes) {
         if (system->backwardEdges[node].empty() && !system->forwardEdges[node].empty()) {
             q.push(node);
@@ -112,12 +113,15 @@ bool ConstraintSolverV1::sanityCheck() {
     while (!q.empty()) {
         NodeID cur = q.front();
         q.pop();
+        visited.insert(cur);
 
         for (const NodeID &next : system->forwardEdges[cur]) {
             if (!isSubsetOf(answers[cur], answers[next])) {
                 return false;
             }
-            q.push(next);
+            if (visited.count(next) == 0) {
+                q.push(next);
+            }
         }
     }
 
