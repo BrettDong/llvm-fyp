@@ -27,7 +27,13 @@ VTable::VTable(const Constant *initializer) {
 
 const std::vector<llvm::Function *> &VTable::getAllEntries() const { return entries; }
 
-llvm::Function *VTable::getEntry(std::size_t index) const { return entries.at(index); }
+llvm::Function *VTable::getEntry(std::size_t index) const {
+    if (index >= entries.size()) {
+        return nullptr;
+    } else {
+        return entries.at(index);
+    }
+}
 
 bool VTable::operator==(const VTable &rhs) const {
     if (entries.size() != rhs.entries.size()) return false;
