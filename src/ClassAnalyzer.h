@@ -5,7 +5,6 @@
 #include "ClassHierarchyGraph.h"
 #include "ClassInfo.h"
 #include "Common.hpp"
-#include "VTable.h"
 
 class ClassAnalyzer {
    private:

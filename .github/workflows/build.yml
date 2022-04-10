@@ -21,4 +21,4 @@ jobs:
           cmake --build build -j2
       - name: Run
         run: |
-          ./build/src/Analyzer ./sample-programs/class-hierarchy
+          ./build/Analyzer ./sample-programs/class-hierarchy

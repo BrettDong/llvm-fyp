@@ -3,11 +3,10 @@
 #define CLASS_INFO_H
 
 #include "Common.hpp"
-#include "VTable.h"
 
 class ClassInfo {
    private:
-    std::unique_ptr<VTable> vtable;
+    std::vector<std::string> vTable;
     std::set<std::string> parentClasses;
     std::string className;
 
@@ -17,8 +16,8 @@ class ClassInfo {
     void decodeVTable(const Constant *initializer);
     void decodeRTTI(const Constant *initializer);
 
-    [[nodiscard]] VTable *getVTable() const;
-    [[nodiscard]] const std::set<std::string> &getParentClasses() const;
+    [[nodiscard]] const std::vector<std::string> &getVTable() const { return vTable; }
+    [[nodiscard]] const std::set<std::string> &getParentClasses() const { return parentClasses; }
 };
 
 #endif  // CLASS_INFO_H

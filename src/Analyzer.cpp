@@ -34,17 +34,20 @@ std::optional<string> Analyzer::getVirtCallType(const CallBase *callInst) const 
 set<string> Analyzer::collectVirtualMethods(const set<string> &types, int index) const {
     set<string> targets;
     for (const string &className : types) {
-        VTable *vtable = classes.getClass(className).getVTable();
-        if (vtable == nullptr) {
+        auto vTable = classes.getClass(className).getVTable();
+        if (vTable.empty()) {
             // outs() << derived << " does not have VTable!\n";
             continue;
         }
-        Function *target = vtable->getEntry(index);
-        if (target == nullptr) {
+        if (index >= vTable.size()) {
+            continue;
+        }
+        const std::string &target = vTable[index];
+        if (target.empty()) {
             // outs() << index.value() << " is out-of-bound in VTable of " << derived << '\n';
             continue;
         }
-        targets.insert(demangle(target->getName().str()));
+        targets.insert(demangle(target));
     }
     auto pure_virtual = targets.find("__cxa_pure_virtual");
     if (pure_virtual != targets.end()) {
@@ -75,7 +78,8 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
     set<string> OFA = collectVirtualMethods(flow.traverseBack(obj), index.value());
 
     if (CHA.empty()) {
-        outs() << "NO TARGET FOUND: " << *callInst << '\n';
+        outs() << "No target found when calling \"" << type.value() << "\" at vtable index "
+               << index.value() << ": " << *callInst << '\n';
     } else {
         ++totalCallSites;
         totalCHATargets += CHA.size();

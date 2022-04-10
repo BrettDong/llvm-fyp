@@ -3,8 +3,29 @@
 #include "Utils.h"
 
 void ClassInfo::decodeVTable(const Constant *initializer) {
-    if (vtable) return;
-    vtable = std::make_unique<VTable>(initializer);
+    if (!vTable.empty()) {
+        return;
+    }
+    const auto *aggregate = dyn_cast<ConstantAggregate>(initializer);
+    if (aggregate == nullptr) {
+        return;
+    }
+    for (size_t i = 0; i < aggregate->getNumOperands(); i++) {
+        if (const auto *array = dyn_cast<ConstantArray>(aggregate->getAggregateElement(i))) {
+            for (size_t j = 0; j < array->getNumOperands(); j++) {
+                if (auto *expr = dyn_cast<ConstantExpr>(array->getAggregateElement(j))) {
+                    if (expr->isCast()) {
+                        auto *constant = dyn_cast<Constant>(expr);
+                        if (Constant *cast = ConstantExpr::getBitCast(constant, expr->getType())) {
+                            if (auto *f = dyn_cast<Function>(cast->getOperand(0))) {
+                                vTable.push_back(f->getName().str());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 void ClassInfo::decodeRTTI(const Constant *initializer) {
@@ -28,13 +49,3 @@ void ClassInfo::decodeRTTI(const Constant *initializer) {
         }
     }
 }
-
-VTable *ClassInfo::getVTable() const {
-    if (vtable) {
-        return vtable.get();
-    } else {
-        return nullptr;
-    }
-}
-
-const std::set<std::string> &ClassInfo::getParentClasses() const { return parentClasses; }
