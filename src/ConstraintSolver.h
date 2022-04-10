@@ -21,7 +21,7 @@ class ConstraintSolver {
 };
 
 class ConstraintSolverV1 : public ConstraintSolver {
-   private:
+   protected:
     ConstraintSystem *system;
     map<NodeID, set<Elem>> answers;
 
@@ -35,6 +35,12 @@ class ConstraintSolverV1 : public ConstraintSolver {
     void solve() override;
     bool sanityCheck() override;
     set<Elem> query(NodeTy v) override;
+};
+
+class ConstraintSolverV2 : public ConstraintSolverV1 {
+   public:
+    explicit ConstraintSolverV2(ConstraintSystem *system) : ConstraintSolverV1(system) {}
+    void solve() override;
 };
 
 #endif  // CONSTRAINT_SOLVER_H

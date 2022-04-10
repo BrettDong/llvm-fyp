@@ -14,6 +14,7 @@ class ConstraintSystem {
 
     friend class ConstraintSolver;
     friend class ConstraintSolverV1;
+    friend class ConstraintSolverV2;
 
     struct Constraint {
         NodeID a;

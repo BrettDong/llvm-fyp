@@ -166,7 +166,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
 }
 
 set<string> FunctionObjectFlow::traverseBack(const Value *val) {
-    ConstraintSolverV1 solver(&constraintSystem);
+    ConstraintSolverV2 solver(&constraintSystem);
     solver.solve();
     if (!solver.sanityCheck()) {
         string err = "Sanity check broken in function " + demangle(function->getName().str());

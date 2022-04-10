@@ -134,3 +134,44 @@ set<ConstraintSolverV1::Elem> ConstraintSolverV1::query(NodeTy v) {
     }
     return answers[system->idMap[v]];
 }
+
+void ConstraintSolverV2::solve() {
+    ConstraintSolverV1::solve();
+    queue<NodeID> q;
+    for (const NodeID &node : system->nodes) {
+        if (system->constants.count(node) > 0) {
+            continue;
+        }
+        set<Elem> unionOf;
+        for (const NodeID &prev : system->backwardEdges[node]) {
+            unionWith(unionOf, answers[prev]);
+        }
+        if (unionOf.empty()) {
+            continue;
+        }
+        bool changed = intersectWith(answers[node], unionOf);
+        if (changed) {
+            for (const NodeID &next : system->forwardEdges[node]) {
+                q.push(next);
+            }
+        }
+    }
+
+    while (!q.empty()) {
+        NodeID cur = q.front();
+        q.pop();
+        set<Elem> unionOf;
+        for (const NodeID &prev : system->backwardEdges[cur]) {
+            unionWith(unionOf, answers[prev]);
+        }
+        if (unionOf.empty()) {
+            continue;
+        }
+        bool changed = intersectWith(answers[cur], unionOf);
+        if (changed) {
+            for (const NodeID &next : system->forwardEdges[cur]) {
+                q.push(next);
+            }
+        }
+    }
+}
