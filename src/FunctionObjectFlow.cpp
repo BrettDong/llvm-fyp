@@ -39,10 +39,12 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
     if (inst->getType()->isPointerTy() && inst->getType()->getPointerElementType()->isStructTy()) {
         auto ty = inst->getType()->getPointerElementType();
         string className = stripClassName(ty->getStructName().str());
-        constraintSystem.addLiteralConstraint(
-            dyn_cast<Value>(inst),
-            classes->getHierarchyGraph().querySelfWithDerivedClasses(className),
-            ConstraintRelation::Superset);
+        if (classes->isClassExist(className)) {
+            constraintSystem.addLiteralConstraint(
+                dyn_cast<Value>(inst),
+                classes->getHierarchyGraph().querySelfWithDerivedClasses(className),
+                ConstraintRelation::Superset);
+        }
     }
     if (auto callee = callBase->getCalledFunction()) {
         string demangled = demangle(callee->getName().str());
