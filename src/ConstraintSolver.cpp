@@ -57,7 +57,7 @@ void ConstraintSolverV1::solve() {
 
             bool changed = false;
 
-            if (system->backwardVisited[left] || system->forwardVisited[left]) {
+            if (system->backwardVisited[left]) {
                 changed = intersectWith(answers[left], answers[cur]);
             } else {
                 for (const Elem &elem : answers[cur]) {
