@@ -35,24 +35,17 @@ void SetConstraintSolver::solve() {
             }
 
             bool changed = false;
-            if (answers[left].empty()) {
-                for (Elem elem : answers[cur]) {
+
+            if (backwardVisited[left]) {
+                changed = intersectWith(answers[left], answers[cur]);
+            } else {
+                for (const Elem &elem : answers[cur]) {
                     answers[left].insert(elem);
                 }
                 changed = true;
+                backwardVisited[left] = true;
             }
-            set<Elem> toBeRemoved;
-            for (Elem elem : answers[left]) {
-                if (answers[cur].count(elem) == 0) {
-                    toBeRemoved.insert(elem);
-                }
-            }
-            if (!toBeRemoved.empty()) {
-                for (Elem elem : toBeRemoved) {
-                    answers[left].erase(elem);
-                }
-                changed = true;
-            }
+
             if (changed) {
                 outs() << "Node[" << cur << "] updated Node[" << left << "] to "
                        << list_out(answers[left]) << '\n';
@@ -66,13 +59,7 @@ void SetConstraintSolver::solve() {
                 continue;
             }
 
-            bool changed = false;
-            for (Elem elem : answers[cur]) {
-                if (answers[right].count(elem) == 0) {
-                    answers[right].insert(elem);
-                    changed = true;
-                }
-            }
+            bool changed = unionWith(answers[right], answers[cur]);
 
             if (changed) {
                 outs() << "Node[" << cur << "] updated Node[" << right << "] to "
@@ -82,6 +69,34 @@ void SetConstraintSolver::solve() {
             }
         }
     }
+}
+
+bool SetConstraintSolver::intersectWith(set<Elem> &dst, const set<Elem> &src) {
+    bool changed = false;
+    set<Elem> toBeRemoved;
+    for (const Elem &elem : dst) {
+        if (src.count(elem) == 0) {
+            toBeRemoved.insert(elem);
+        }
+    }
+    if (!toBeRemoved.empty()) {
+        for (const Elem &elem : toBeRemoved) {
+            dst.erase(elem);
+        }
+        changed = true;
+    }
+    return changed;
+}
+
+bool SetConstraintSolver::unionWith(set<Elem> &dst, const set<Elem> &src) {
+    bool changed = false;
+    for (const Elem &elem : src) {
+        if (dst.count(elem) == 0) {
+            dst.insert(elem);
+            changed = true;
+        }
+    }
+    return changed;
 }
 
 void SetConstraintSolver::run() {

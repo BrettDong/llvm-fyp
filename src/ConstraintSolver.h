@@ -34,6 +34,10 @@ class SetConstraintSolver {
 
     void solve();
 
+    bool intersectWith(set<Elem> &dst, const set<Elem> &src);
+
+    bool unionWith(set<Elem> &dst, const set<Elem> &src);
+
    public:
     void run();
 };
