@@ -29,6 +29,8 @@ void SetConstraintSolver::addLiteralConstraint(NodeTy a, const set<Elem> &litera
         idA = nextId++;
         idMap[a] = idA;
         nodes.insert(idA);
+    } else {
+        idA = idMap[a];
     }
     NodeID literalId = nextId++;
     nodes.insert(literalId);
