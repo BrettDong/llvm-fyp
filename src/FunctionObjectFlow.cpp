@@ -69,26 +69,48 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
 void FunctionObjectFlow::analyzeFunction(const Function *f) {
     function = f;
 
+    auto isPolymorphicType = [this](const Value *v) -> bool {
+        if (!v->getType()->isPointerTy()) {
+            return false;
+        }
+        auto ty = v->getType()->getPointerElementType();
+        if (!ty->isStructTy()) {
+            return false;
+        }
+        auto tyName = stripClassName(ty->getStructName().str());
+        if (!classes->isClassExist(tyName)) {
+            return false;
+        }
+        return true;
+    };
+
+    auto derivedClassesOf = [this](const Value *v) -> set<string> {
+        auto ty = v->getType()->getPointerElementType();
+        auto tyName = stripClassName(ty->getStructName().str());
+        return classes->getHierarchyGraph().querySelfWithDerivedClasses(tyName);
+    };
+
+    auto constrainNominalType = [=](const Value *v) {
+        if (isPolymorphicType(v)) {
+            auto set = derivedClassesOf(v);
+            // outs() << "constrain (" << v << ") [" << *v << "] to {" << list_out(set) << "}\n";
+            solver.addLiteralConstraint(v, set);
+        }
+    };
+
     for (size_t i = 0; i < f->arg_size(); i++) {
         const Argument *arg = f->getArg(i);
         arguments.emplace_back(arg);
-        if (arg->getType()->isPointerTy() &&
-            arg->getType()->getPointerElementType()->isStructTy()) {
-            auto ty = arg->getType()->getPointerElementType();
-            string className = stripClassName(ty->getStructName().str());
-            solver.addLiteralConstraint(
-                dyn_cast<Value>(arg),
-                classes->getHierarchyGraph().querySelfWithDerivedClasses(className),
-                SetConstraintType::Superset);
-            // argumentTypes.insert({i, arg->getType()->getPointerElementType()});
-        }
+        constrainNominalType(arg);
     }
 
     for (auto &bb : *f) {
         for (auto &inst : bb) {
+            // outs() << "Processing " << inst << '\n';
             switch (inst.getOpcode()) {
                 case Instruction::Alloca: {
                     alloca.insert(&inst);
+                    constrainNominalType(&inst);
                     // outs() << "ALLOCA " << &inst << '\n';
                     break;
                 }
@@ -98,15 +120,18 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                         // addEdge(inst.getOperand(0), &inst, ConstraintType::Widen);
                         // outs() << "LOAD " << &inst << " <- " << inst.getOperand(0) << '\n';
                     }
+                    constrainNominalType(&inst);
                     break;
                 }
                 case Instruction::Store: {
-                    if (inst.getOperand(0)->getType()->isPointerTy()) {
+                    if (inst.getOperand(0)->getType()->isPointerTy() &&
+                        !isa<ConstantPointerNull>(inst.getOperand(0))) {
                         solver.addConstraint(inst.getOperand(0), inst.getOperand(1));
                         // addEdge(inst.getOperand(0), inst.getOperand(1), ConstraintType::Widen);
                         // outs() << "STORE " << inst.getOperand(1) << " <- " << inst.getOperand(0)
                         // << '\n';
                     }
+                    constrainNominalType(&inst);
                     break;
                 }
                 case Instruction::BitCast: {
@@ -115,10 +140,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                         auto dstType = inst.getType()->getPointerElementType();
                         auto srcType = inst.getOperand(0)->getType()->getPointerElementType();
                         if (dstType->isStructTy()) {
-                            string className = stripClassName(dstType->getStructName().str());
-                            solver.addLiteralConstraint(
-                                &inst, classes->getHierarchyGraph().querySelfWithDerivedClasses(
-                                           className));
+                            constrainNominalType(&inst);
                             if (srcType->isStructTy()) {
                                 solver.addConstraint(&inst, inst.getOperand(0));
                             }
@@ -129,6 +151,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                 case Instruction::Call:
                 case Instruction::Invoke: {
                     handleCallBase(dyn_cast<CallBase>(&inst));
+                    constrainNominalType(&inst);
                     break;
                 }
                 default: {
@@ -140,7 +163,14 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
 }
 
 set<string> FunctionObjectFlow::traverseBack(const Value *val) {
+    // outs() << "===\n";
+    // solver.dumpConstraints();
+    // outs() << "===\n";
     solver.buildGraph();
     solver.solve();
+    if (!solver.sanityCheck()) {
+        string err = "Sanity check broken in function " + demangle(function->getName().str());
+        throw std::runtime_error(err.c_str());
+    }
     return solver.query(val);
 }
