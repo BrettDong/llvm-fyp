@@ -10,11 +10,14 @@ std::string stripTrailing(std::string className);
 std::string stripClassName(std::string name);
 
 template <typename T>
-std::string list_out(const T &collection) {
+std::string list_out(const T &collection, string delim = " ") {
     std::string answer;
     for (const auto &elem : collection) {
         answer += elem;
-        answer += ' ';
+        answer += delim;
+    }
+    if (!answer.empty()) {
+        answer.erase(answer.end() - delim.length(), answer.end());
     }
     return answer;
 }
