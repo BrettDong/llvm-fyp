@@ -50,7 +50,7 @@ set<string> Analyzer::collectVirtualMethods(const set<string> &types, int index)
             // outs() << index.value() << " is out-of-bound in VTable of " << derived << '\n';
             continue;
         }
-        targets.insert("[" + className + " -> " + demangle(target->getName().str()) + "]");
+        targets.insert(demangle(target->getName().str()));
     }
     auto pure_virtual = targets.find("__cxa_pure_virtual");
     if (pure_virtual != targets.end()) {
@@ -80,6 +80,14 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
     flow.analyzeFunction(callInst->getParent()->getParent());
     set<string> OFA = collectVirtualMethods(flow.traverseBack(obj), index.value());
 
+    if (CHA.empty()) {
+        outs() << "NO TARGET FOUND: " << *callInst << '\n';
+    } else {
+        ++totalCallSites;
+        totalCHATargets += CHA.size();
+        totalOFATargets += OFA.size();
+    }
+    return;
     outs() << "In function " << demangle(callInst->getFunction()->getName().str()) << "\n";
     outs() << "At virtual call " << *callInst << "\n";
     outs() << "Class hierarchy analysis (" << CHA.size() << "): " << list_out(CHA) << '\n';
@@ -101,7 +109,18 @@ void Analyzer::analyzeFunction(const Function &f) {
 
 Analyzer::Analyzer() { llvmContext = make_unique<LLVMContext>(); }
 
+static void printTime(const decltype(chrono::system_clock::now()) &start) {
+    float seconds = chrono::duration<float>(chrono::system_clock::now() - start).count();
+    ostringstream oss;
+    oss.precision(3);
+    oss << fixed << seconds;
+    outs() << "[" << oss.str() << "] ";
+}
+
 void Analyzer::analyze(const vector<string> &files) {
+    auto start = chrono::system_clock::now();
+    printTime(start);
+    outs() << "Parsing LLVM IR from " << files.size() << " modules" << '\n';
     for (const string &file : files) {
         // outs() << "Reading bitcode file: " << file << "\n";
         unique_ptr<Module> module = parseIRFile(file, err, *llvmContext);
@@ -112,11 +131,14 @@ void Analyzer::analyze(const vector<string> &files) {
         modules[file] = std::move(module);
     }
 
+    printTime(start);
+    outs() << "Analyzing class inheritance relationships" << '\n';
     for (const auto &[file, module] : modules) {
         // outs() << "Decoding class information from " << file << '\n';
         classes.analyzeModule(module.get());
     }
 
+    printTime(start);
     outs() << "Building class hierarchy graph" << '\n';
     classes.buildClassHierarchyGraph();
 
@@ -127,10 +149,18 @@ void Analyzer::analyze(const vector<string> &files) {
         }
     }
 
+    printTime(start);
+    outs() << "Analyzing " << functions.size() << " functions" << '\n';
     // outs() << "Analyzing main function" << '\n';
     // analyzeFunction(*functions["_Z3fooP5Shaped"]);
     // analyzeFunction(*functions["main"]);
     for (const auto &it : functions) {
         analyzeFunction(*it.second);
     }
+
+    printTime(start);
+    outs() << "Analysis completed" << '\n';
+    outs() << "Total virtual call sites: " << totalCallSites << '\n';
+    outs() << "Total targets reported by class hierarchy analysis: " << totalCHATargets << '\n';
+    outs() << "Total targets reported by object flow analysis: " << totalOFATargets << '\n';
 }

@@ -15,10 +15,14 @@ class Analyzer {
 
     ClassAnalyzer classes;
 
+    int totalCHATargets = 0;
+    int totalOFATargets = 0;
+    int totalCallSites = 0;
+
    private:
     std::optional<int> getVTableIndex(const CallBase *callInst) const;
     std::optional<string> getVirtCallType(const CallBase *callInst) const;
-    std::set<string> collectVirtualMethods(const set<string> &types, int index) const;
+    [[nodiscard]] std::set<string> collectVirtualMethods(const set<string> &types, int index) const;
     void analyzeVirtCall(const CallBase *callInst);
     void analyzeFunction(const Function &f);
 
