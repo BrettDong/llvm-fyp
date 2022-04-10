@@ -23,13 +23,7 @@ std::optional<string> Analyzer::getVirtCallType(const CallBase *callInst) const 
     if (!op0Ty->isPointerTy()) return std::nullopt;
     const StructType *ty = dyn_cast<StructType>(op0Ty->getPointerElementType());
     if (ty == nullptr) return std::nullopt;
-    std::string className = ty->getName().str();
-    if (beginsWith(className, "class.")) {
-        className = removePrefix(className, "class.");
-    } else if (beginsWith(className, "struct.")) {
-        className = removePrefix(className, "struct.");
-    }
-    className = stripTrailing(className);
+    std::string className = stripClassName(ty->getName().str());
     if (!classes.isClassExist(className)) {
         // outs() << "Non-existing class name " << className << '\n';
         return std::nullopt;
