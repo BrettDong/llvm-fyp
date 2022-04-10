@@ -2,14 +2,55 @@
 
 #include "Utils.h"
 
+void SetConstraintSolver::addConstraint(NodeTy a, NodeTy b, SetConstraintType c) {
+    NodeID idA = 0;
+    if (idMap.count(a) == 0) {
+        idA = nextId++;
+        idMap[a] = idA;
+        nodes.insert(idA);
+    } else {
+        idA = idMap[a];
+    }
+    NodeID idB = 0;
+    if (idMap.count(b) == 0) {
+        idB = nextId++;
+        idMap[b] = idB;
+        nodes.insert(idB);
+    } else {
+        idB = idMap[b];
+    }
+    constraints.emplace_back(idA, idB, c);
+}
+
+void SetConstraintSolver::addLiteralConstraint(NodeTy a, const set<Elem> &literal,
+                                               SetConstraintType c) {
+    NodeID idA = 0;
+    if (idMap.count(a) == 0) {
+        idA = nextId++;
+        idMap[a] = idA;
+        nodes.insert(idA);
+    }
+    NodeID literalId = nextId++;
+    nodes.insert(literalId);
+    constants.insert(literalId);
+    answers[literalId] = literal;
+    constraints.emplace_back(idA, literalId, c);
+}
+
 void SetConstraintSolver::buildGraph() {
     for (const SetConstraint &constraint : constraints) {
         if (constraint.c == SetConstraintType::Subset) {
             forwardEdges[constraint.a].insert(constraint.b);
             backwardEdges[constraint.b].insert(constraint.a);
+            outs() << constraint.a << " is subset of " << constraint.b << '\n';
+            if (constants.count(constraint.b) > 0) {
+                outs() << "constant " << constraint.b << " is " << list_out(answers[constraint.b])
+                       << '\n';
+            }
         } else {
             forwardEdges[constraint.b].insert(constraint.a);
             backwardEdges[constraint.a].insert(constraint.b);
+            outs() << constraint.b << " is subset of " << constraint.a << '\n';
         }
     }
 }
@@ -99,6 +140,14 @@ bool SetConstraintSolver::unionWith(set<Elem> &dst, const set<Elem> &src) {
     return changed;
 }
 
+set<SetConstraintSolver::Elem> SetConstraintSolver::query(NodeTy v) {
+    if (idMap.count(v) == 0) {
+        return {};
+    }
+    return answers[idMap[v]];
+}
+
+/*
 void SetConstraintSolver::run() {
     nodes = {2, 6, 9, 12, 15, 25, 26, 27};
     constraints.emplace_back(9, 27, SetConstraintType::Subset);
@@ -126,3 +175,4 @@ void SetConstraintSolver::run() {
         }
     }
 }
+*/
