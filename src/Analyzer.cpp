@@ -17,8 +17,10 @@ std::optional<int> Analyzer::getVTableIndex(const CallBase *callInst) const {
 }
 
 std::optional<string> Analyzer::getVirtCallType(const CallBase *callInst) const {
+    if (callInst->arg_size() < 1) return std::nullopt;
     const Type *op0Ty = callInst->getArgOperand(0)->getType();
     if (op0Ty == nullptr) return std::nullopt;
+    if (!op0Ty->isPointerTy()) return std::nullopt;
     const StructType *ty = dyn_cast<StructType>(op0Ty->getPointerElementType());
     if (ty == nullptr) return std::nullopt;
     std::string className = ty->getName().str();
