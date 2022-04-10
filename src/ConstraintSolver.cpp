@@ -42,15 +42,16 @@ void SetConstraintSolver::buildGraph() {
         if (constraint.c == SetConstraintType::Subset) {
             forwardEdges[constraint.a].insert(constraint.b);
             backwardEdges[constraint.b].insert(constraint.a);
+            /*
             outs() << constraint.a << " is subset of " << constraint.b << '\n';
             if (constants.count(constraint.b) > 0) {
                 outs() << "constant " << constraint.b << " is " << list_out(answers[constraint.b])
                        << '\n';
-            }
+            }*/
         } else {
             forwardEdges[constraint.b].insert(constraint.a);
             backwardEdges[constraint.a].insert(constraint.b);
-            outs() << constraint.b << " is subset of " << constraint.a << '\n';
+            // outs() << constraint.b << " is subset of " << constraint.a << '\n';
         }
     }
 }
@@ -88,8 +89,8 @@ void SetConstraintSolver::solve() {
             }
 
             if (changed) {
-                outs() << "Node[" << cur << "] updated Node[" << left << "] to "
-                       << list_out(answers[left]) << '\n';
+                // outs() << "Node[" << cur << "] updated Node[" << left << "] to "
+                //       << list_out(answers[left]) << '\n';
                 backwardVisited[left] = true;
                 q.push(left);
             }
@@ -103,8 +104,8 @@ void SetConstraintSolver::solve() {
             bool changed = unionWith(answers[right], answers[cur]);
 
             if (changed) {
-                outs() << "Node[" << cur << "] updated Node[" << right << "] to "
-                       << list_out(answers[right]) << '\n';
+                // outs() << "Node[" << cur << "] updated Node[" << right << "] to "
+                //       << list_out(answers[right]) << '\n';
                 forwardVisited[right] = true;
                 q.push(right);
             }
