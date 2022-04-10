@@ -45,6 +45,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <map>

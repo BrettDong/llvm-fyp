@@ -35,7 +35,7 @@ std::string stripClassName(std::string name) {
     size_t dot = name.find_last_of('.');
     if (dot != std::string::npos && dot + 1 < name.length()) {
         if (std::all_of(name.begin() + dot + 1, name.end(),
-                        [](const char ch) { return isnumber(ch); })) {
+                        [](const char ch) { return isdigit(ch); })) {
             name = name.substr(0, dot);
         }
     }
