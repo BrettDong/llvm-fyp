@@ -35,27 +35,15 @@ std::optional<string> Analyzer::getVirtCallType(const CallBase *callInst) const 
     return className;
 }
 
-set<string> Analyzer::analyzeVirtCall(const CallBase *callInst) {
-    auto index = getVTableIndex(callInst);
-    if (!index.has_value()) {
-        // outs() << "cannot get vtable index" << '\n';
-        return set<string>();
-    }
-    auto type = getVirtCallType(callInst);
-    if (!type.has_value()) {
-        // outs() << "cannot get virt call type" << '\n';
-        return set<string>();
-    }
-    set<string> derivedClasses =
-        classes.getHierarchyGraph().querySelfWithDerivedClasses(type.value());
+set<string> Analyzer::collectVirtualMethods(const set<string> &types, int index) const {
     set<string> targets;
-    for (const string &derived : derivedClasses) {
-        VTable *vtable = classes.getClass(derived).getVTable();
+    for (const string &className : types) {
+        VTable *vtable = classes.getClass(className).getVTable();
         if (vtable == nullptr) {
             // outs() << derived << " does not have VTable!\n";
             continue;
         }
-        Function *target = vtable->getEntry(index.value());
+        Function *target = vtable->getEntry(index);
         if (target == nullptr) {
             // outs() << index.value() << " is out-of-bound in VTable of " << derived << '\n';
             continue;
@@ -69,30 +57,40 @@ set<string> Analyzer::analyzeVirtCall(const CallBase *callInst) {
     return targets;
 }
 
+void Analyzer::analyzeVirtCall(const CallBase *callInst) {
+    auto index = getVTableIndex(callInst);
+    if (!index.has_value()) {
+        // outs() << "cannot get vtable index" << '\n';
+        return;
+    }
+    auto type = getVirtCallType(callInst);
+    if (!type.has_value()) {
+        // outs() << "cannot get virt call type" << '\n';
+        return;
+    }
+    const auto &hierarchy = classes.getHierarchyGraph();
+    set<string> derivedClasses = hierarchy.querySelfWithDerivedClasses(type.value());
+
+    set<string> CHA = collectVirtualMethods(derivedClasses, index.value());
+
+    const Value *obj = callInst->getOperand(0);
+    FunctionObjectFlow flow(&classes);
+    flow.analyzeFunction(callInst->getParent()->getParent());
+    set<string> OFA = collectVirtualMethods(flow.traverseBack(obj), index.value());
+
+    outs() << "In function " << demangle(callInst->getFunction()->getName().str()) << "\n";
+    outs() << "At virtual call " << *callInst << "\n";
+    outs() << "Class hierarchy analysis (" << CHA.size() << "): " << list_out(CHA) << '\n';
+    outs() << "Object-flow analysis (" << OFA.size() << "): " << list_out(OFA) << '\n';
+    outs() << '\n';
+}
+
 void Analyzer::analyzeFunction(const Function &f) {
     for (auto &bb : f) {
         for (auto &inst : bb) {
             if (auto callInst = dyn_cast<CallBase>(&inst)) {
                 if (callInst->getCalledFunction() == nullptr) {
-                    set<string> targets = analyzeVirtCall(callInst);
-                    if (!targets.empty()) {
-                        const Value *obj = callInst->getOperand(0);
-                        FunctionObjectFlow flow(&classes);
-                        flow.analyzeFunction(&f);
-                        set<string> fine = flow.traverseBack(obj);
-
-                        outs() << "Indirect call " << callInst << " has " << targets.size()
-                               << " class hierarchy analysis targets:\n";
-                        for (auto &target : targets) {
-                            outs() << demangle(f.getName().str()) << " =(I)=> " << target << "\n";
-                        }
-
-                        outs() << "Indirect call " << callInst << " has " << fine.size()
-                               << " object-flow analysis targets:\n";
-                        for (auto &target : fine) {
-                            outs() << demangle(f.getName().str()) << " =(I)=> " << target << "\n";
-                        }
-                    }
+                    analyzeVirtCall(callInst);
                 }
             }
         }
@@ -129,8 +127,8 @@ void Analyzer::analyze(const vector<string> &files) {
 
     // outs() << "Analyzing main function" << '\n';
     // analyzeFunction(*functions["_Z3fooP5Shaped"]);
-    analyzeFunction(*functions["main"]);
-    /*for (auto it : functions) {
+    // analyzeFunction(*functions["main"]);
+    for (auto it : functions) {
         analyzeFunction(*it.second);
-    }*/
+    }
 }
