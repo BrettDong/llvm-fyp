@@ -50,7 +50,7 @@ set<string> Analyzer::collectVirtualMethods(const set<string> &types, int index)
             // outs() << index.value() << " is out-of-bound in VTable of " << derived << '\n';
             continue;
         }
-        targets.insert(demangle(target->getName().str()));
+        targets.insert("[" + className + " -> " + demangle(target->getName().str()) + "]");
     }
     auto pure_virtual = targets.find("__cxa_pure_virtual");
     if (pure_virtual != targets.end()) {
@@ -130,7 +130,7 @@ void Analyzer::analyze(const vector<string> &files) {
     // outs() << "Analyzing main function" << '\n';
     // analyzeFunction(*functions["_Z3fooP5Shaped"]);
     // analyzeFunction(*functions["main"]);
-    for (auto it : functions) {
+    for (const auto &it : functions) {
         analyzeFunction(*it.second);
     }
 }
