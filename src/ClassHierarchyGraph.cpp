@@ -7,14 +7,14 @@ void ClassHierarchyGraph::addRelationship(const std::string &base, const std::st
     subClasses[base].insert(derived);
 }
 
-set<string> ClassHierarchyGraph::queryDerivedClasses(const std::string &base) const {
-    set<string> result;
+set<string> ClassHierarchyGraph::querySelfWithDerivedClasses(const std::string &base) const {
+    set<string> result{base};
     if (subClasses.count(base) == 0) {
         return result;
     }
     for (const std::string &subClass : subClasses.at(base)) {
         result.insert(subClass);
-        set<string> query = queryDerivedClasses(subClass);
+        set<string> query = querySelfWithDerivedClasses(subClass);
         for (const std::string &subSubClass : query) {
             result.insert(subSubClass);
         }

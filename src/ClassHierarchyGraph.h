@@ -10,7 +10,7 @@ class ClassHierarchyGraph {
 
    public:
     void addRelationship(const std::string &base, const std::string &derived);
-    set<string> queryDerivedClasses(const std::string &base) const;
+    set<string> querySelfWithDerivedClasses(const std::string &base) const;
 };
 
 #endif  // CLASS_HIERARCHY_GRAPH_H
