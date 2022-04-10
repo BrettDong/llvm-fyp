@@ -32,7 +32,7 @@ double foo(Shape *shape, double x) {
 }
 
 double goo(Rectangle *shape, double x) {
-    double answer = shape->Area(x);
+    double answer = foo(shape, x);
     return answer;
 }
 

@@ -90,15 +90,12 @@ define double @_Z3gooP9Rectangled(%class.Rectangle* %0, double %1) #1 {
   store %class.Rectangle* %0, %class.Rectangle** %3, align 8
   store double %1, double* %4, align 8
   %6 = load %class.Rectangle*, %class.Rectangle** %3, align 8
-  %7 = load double, double* %4, align 8
-  %8 = bitcast %class.Rectangle* %6 to double (%class.Rectangle*, double)***
-  %9 = load double (%class.Rectangle*, double)**, double (%class.Rectangle*, double)*** %8, align 8
-  %10 = getelementptr inbounds double (%class.Rectangle*, double)*, double (%class.Rectangle*, double)** %9, i64 2
-  %11 = load double (%class.Rectangle*, double)*, double (%class.Rectangle*, double)** %10, align 8
-  %12 = call double %11(%class.Rectangle* nonnull align 8 dereferenceable(8) %6, double %7)
-  store double %12, double* %5, align 8
-  %13 = load double, double* %5, align 8
-  ret double %13
+  %7 = bitcast %class.Rectangle* %6 to %class.Shape*
+  %8 = load double, double* %4, align 8
+  %9 = call double @_Z3fooP5Shaped(%class.Shape* %7, double %8)
+  store double %9, double* %5, align 8
+  %10 = load double, double* %5, align 8
+  ret double %10
 }
 
 ; Function Attrs: mustprogress noinline norecurse optnone ssp uwtable
