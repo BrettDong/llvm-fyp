@@ -22,14 +22,6 @@ static string getConstructorClassName(string functionName) {
     return right;
 }
 
-void FunctionObjectFlow::addEdge(const Value *src, const Value *dst) {
-    auto it = edges.find(dst);
-    if (it == edges.end()) {
-        it = edges.insert({dst, set<const Value *>()}).first;
-    }
-    it->second.insert(src);
-}
-
 void FunctionObjectFlow::addInstantiation(const Value *dst, const string &className) {
     auto it = instantiations.find(dst);
     if (it == instantiations.end()) {
@@ -47,11 +39,16 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
         string demangled = demangle(callee->getName().str());
         // outs() << "     (" << demangled << ")\n";
         if (isConstructor(demangled)) {
+            // outs() << "constructor of " << getConstructorClassName(demangled) << " in function "
+            //        << demangle(function->getName().str()) << " in "
+            //        << function->getParent()->getName() << '\n';
             constructor = true;
             // outs() << "     [ CONSTRUCTOR ]\n";
             addInstantiation(callBase->getOperand(0), getConstructorClassName(demangled));
         }
         if (beginsWith(demangled, "operator new") || beginsWith(demangled, "llvm.memset")) {
+            // outs() << "operator new() in function " << demangle(function->getName().str()) <<
+            // " in " << function->getParent()->getName() << '\n';
             system = true;
         }
     }
@@ -64,8 +61,12 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
 void FunctionObjectFlow::analyzeFunction(const Function *f) {
     function = f;
 
-    for (const Argument &arg : f->args()) {
-        arguments.emplace_back(&arg);
+    for (size_t i = 0; i < f->arg_size(); i++) {
+        const Argument *arg = f->getArg(i);
+        arguments.emplace_back(arg);
+        if (arg->getType()->isPointerTy()) {
+            // argumentTypes.insert({i, arg->getType()->getPointerElementType()});
+        }
     }
 
     for (auto &bb : *f) {
@@ -78,23 +79,35 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                 }
                 case Instruction::Load: {
                     if (inst.getType()->isPointerTy()) {
-                        addEdge(inst.getOperand(0), &inst);
+                        solver.addConstraint(inst.getOperand(0), &inst);
+                        // addEdge(inst.getOperand(0), &inst, ConstraintType::Widen);
                         // outs() << "LOAD " << &inst << " <- " << inst.getOperand(0) << '\n';
                     }
                     break;
                 }
                 case Instruction::Store: {
                     if (inst.getOperand(0)->getType()->isPointerTy()) {
-                        addEdge(inst.getOperand(0), inst.getOperand(1));
+                        solver.addConstraint(inst.getOperand(0), inst.getOperand(1));
+                        // addEdge(inst.getOperand(0), inst.getOperand(1), ConstraintType::Widen);
                         // outs() << "STORE " << inst.getOperand(1) << " <- " << inst.getOperand(0)
                         // << '\n';
                     }
                     break;
                 }
                 case Instruction::BitCast: {
-                    if (inst.getType()->isPointerTy()) {
-                        addEdge(inst.getOperand(0), &inst);
-                        // outs() << "BITCAST " << &inst << " <- " << inst.getOperand(0) << '\n';
+                    if (inst.getType()->isPointerTy() &&
+                        inst.getOperand(0)->getType()->isPointerTy()) {
+                        auto dstType = inst.getType()->getPointerElementType();
+                        auto srcType = inst.getOperand(0)->getType()->getPointerElementType();
+                        if (dstType->isStructTy()) {
+                            string className = stripClassName(dstType->getStructName().str());
+                            solver.addLiteralConstraint(
+                                &inst, classes->getHierarchyGraph().querySelfWithDerivedClasses(
+                                           className));
+                            if (srcType->isStructTy()) {
+                                solver.addConstraint(&inst, inst.getOperand(0));
+                            }
+                        }
                     }
                     break;
                 }
@@ -111,49 +124,8 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
     }
 }
 
-ObjectFlowOrigin FunctionObjectFlow::traverseBack(const Value *val) {
-    ObjectFlowOrigin answer;
-    queue<const Value *> q;
-    set<const Value *> visited;
-    set<string> result;
-    q.push(val);
-    while (!q.empty()) {
-        const Value *cur = q.front();
-        q.pop();
-        visited.insert(cur);
-
-        auto instantiation = instantiations.find(cur);
-        if (instantiation != instantiations.end()) {
-            answer.instantiated = true;
-            for (const string &className : instantiation->second) {
-                // outs() << "instantiated " << className << '\n';
-            }
-        }
-
-        if (alloca.count(cur) != 0) {
-            // outs() << "reached alloca." << '\n';
-        }
-
-        if (std::find(arguments.begin(), arguments.end(), cur) != arguments.end()) {
-            answer.argument = true;
-            // outs() << "from a function argument." << '\n';
-        }
-
-        if (retVals.count(cur) != 0) {
-            answer.retVal = true;
-            // outs() << cur << " is from return value from another function." << '\n';
-        }
-
-        auto edge = edges.find(cur);
-        if (edge != edges.end()) {
-            for (const Value *src : edge->second) {
-                if (visited.count(src) == 0) {
-                    // outs() << cur << " <- " << src << '\n';
-                    q.push(src);
-                }
-            }
-        }
-    }
-
-    return answer;
+set<string> FunctionObjectFlow::traverseBack(const Value *val) {
+    solver.buildGraph();
+    solver.solve();
+    return solver.query(val);
 }

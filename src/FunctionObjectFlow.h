@@ -2,13 +2,9 @@
 #ifndef FUNCTION_OBJECT_FLOW_H
 #define FUNCTION_OBJECT_FLOW_H
 
+#include "ClassAnalyzer.h"
 #include "Common.hpp"
-
-struct ObjectFlowOrigin {
-    bool argument = false;
-    bool retVal = false;
-    bool instantiated = false;
-};
+#include "ConstraintSolver.h"
 
 class FunctionObjectFlow {
    private:
@@ -16,19 +12,22 @@ class FunctionObjectFlow {
     set<const Value *> alloca;
     set<const Value *> retVals;
     map<const Value *, set<string>> instantiations;
-    map<const Value *, set<const Value *>> edges;
-    const Function *function;
 
-    void addEdge(const Value *src, const Value *dst);
+    SetConstraintSolver solver;
+
+    ClassAnalyzer *classes;
+    const Function *function;
 
     void addInstantiation(const Value *dst, const string &className);
 
     void handleCallBase(const Instruction *inst);
 
    public:
+    explicit FunctionObjectFlow(ClassAnalyzer *classes) : classes(classes), function(nullptr) {}
+
     void analyzeFunction(const Function *f);
 
-    ObjectFlowOrigin traverseBack(const Value *val);
+    set<string> traverseBack(const Value *val);
 };
 
 #endif  // FUNCTION_OBJECT_FLOW_H
