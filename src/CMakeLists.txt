@@ -5,6 +5,7 @@ set(SOURCE
         ClassInfo.cpp
         Common.hpp
         ConstraintSolver.cpp
+        ConstraintSystem.cpp
         FunctionObjectFlow.cpp
         Main.cpp
         Utils.cpp

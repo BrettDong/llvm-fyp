@@ -3,61 +3,38 @@
 #define CONSTRAINT_SOLVER_H
 
 #include "Common.hpp"
+#include "ConstraintSystem.h"
 
-enum class SetConstraintType : int { Subset, Superset };
+class ConstraintSolver {
+   protected:
+    using NodeTy = ConstraintSystem::NodeTy;
+    using NodeID = ConstraintSystem::NodeID;
+    using Elem = ConstraintSystem::Elem;
 
-class SetConstraintSolver {
+   public:
+    ConstraintSolver() = delete;
+    explicit ConstraintSolver(const ConstraintSystem *system) {}
+    virtual ~ConstraintSolver() = default;
+    virtual void solve() = 0;
+    virtual bool sanityCheck() = 0;
+    virtual set<Elem> query(NodeTy v) = 0;
+};
+
+class ConstraintSolverV1 : public ConstraintSolver {
    private:
-    using NodeTy = const Value *;
-    using NodeID = int;
-    using Elem = string;
-
-    struct SetConstraint {
-        NodeID a;
-        NodeID b;
-        SetConstraintType c;
-
-        SetConstraint(NodeID a, NodeID b, SetConstraintType c) : a(a), b(b), c(c) {}
-    };
-
+    ConstraintSystem *system;
     map<NodeID, set<Elem>> answers;
-    vector<SetConstraint> constraints;
-    set<NodeID> constants;
-    set<NodeID> nodes;
-    map<NodeTy, NodeID> idMap;
-    NodeID nextId = 0;
-
-    map<NodeID, set<NodeID>> forwardEdges;   // A -> B where A is subset of B
-    map<NodeID, set<NodeID>> backwardEdges;  // A <- B where A is a subset of B
-
-    map<NodeID, bool> backwardVisited;
-    map<NodeID, bool> forwardVisited;
 
     bool intersectWith(set<Elem> &dst, const set<Elem> &src);
 
     bool unionWith(set<Elem> &dst, const set<Elem> &src);
 
-    optional<NodeTy> lookupNodeID(const NodeID &id);
-
-    string visualizeConstraintOperand(const NodeID &id);
-
    public:
-    void addConstraint(NodeTy a, NodeTy b, SetConstraintType c = SetConstraintType::Subset);
-
-    void addLiteralConstraint(NodeTy a, const set<Elem> &literal,
-                              SetConstraintType c = SetConstraintType::Subset);
-
-    void buildGraph();
-
-    void solve();
-
-    void printConstraint(SetConstraint constraint);
-
-    void dumpConstraints();
-
-    bool sanityCheck();
-
-    set<Elem> query(NodeTy v);
+    explicit ConstraintSolverV1(ConstraintSystem *system)
+        : ConstraintSolver(system), system(system) {}
+    void solve() override;
+    bool sanityCheck() override;
+    set<Elem> query(NodeTy v) override;
 };
 
 #endif  // CONSTRAINT_SOLVER_H

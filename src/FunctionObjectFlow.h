@@ -4,7 +4,7 @@
 
 #include "ClassAnalyzer.h"
 #include "Common.hpp"
-#include "ConstraintSolver.h"
+#include "ConstraintSystem.h"
 
 class FunctionObjectFlow {
    private:
@@ -13,7 +13,7 @@ class FunctionObjectFlow {
     set<const Value *> retVals;
     map<const Value *, set<string>> instantiations;
 
-    SetConstraintSolver solver;
+    ConstraintSystem constraintSystem;
 
     ClassAnalyzer *classes;
     const Function *function;

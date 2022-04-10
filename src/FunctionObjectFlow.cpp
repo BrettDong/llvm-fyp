@@ -2,6 +2,7 @@
 
 #include <queue>
 
+#include "ConstraintSolver.h"
 #include "Utils.h"
 
 static bool isConstructor(string functionName) {
@@ -38,10 +39,10 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
     if (inst->getType()->isPointerTy() && inst->getType()->getPointerElementType()->isStructTy()) {
         auto ty = inst->getType()->getPointerElementType();
         string className = stripClassName(ty->getStructName().str());
-        solver.addLiteralConstraint(
+        constraintSystem.addLiteralConstraint(
             dyn_cast<Value>(inst),
             classes->getHierarchyGraph().querySelfWithDerivedClasses(className),
-            SetConstraintType::Superset);
+            ConstraintRelation::Superset);
     }
     if (auto callee = callBase->getCalledFunction()) {
         string demangled = demangle(callee->getName().str());
@@ -94,7 +95,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
         if (isPolymorphicType(v)) {
             auto set = derivedClassesOf(v);
             // outs() << "constrain (" << v << ") [" << *v << "] to {" << list_out(set) << "}\n";
-            solver.addLiteralConstraint(v, set);
+            constraintSystem.addLiteralConstraint(v, set);
         }
     };
 
@@ -116,7 +117,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                 }
                 case Instruction::Load: {
                     if (inst.getType()->isPointerTy()) {
-                        solver.addConstraint(inst.getOperand(0), &inst);
+                        constraintSystem.addConstraint(inst.getOperand(0), &inst);
                         // addEdge(inst.getOperand(0), &inst, ConstraintType::Widen);
                         // outs() << "LOAD " << &inst << " <- " << inst.getOperand(0) << '\n';
                     }
@@ -126,7 +127,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                 case Instruction::Store: {
                     if (inst.getOperand(0)->getType()->isPointerTy() &&
                         !isa<ConstantPointerNull>(inst.getOperand(0))) {
-                        solver.addConstraint(inst.getOperand(0), inst.getOperand(1));
+                        constraintSystem.addConstraint(inst.getOperand(0), inst.getOperand(1));
                         // addEdge(inst.getOperand(0), inst.getOperand(1), ConstraintType::Widen);
                         // outs() << "STORE " << inst.getOperand(1) << " <- " << inst.getOperand(0)
                         // << '\n';
@@ -142,7 +143,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                         if (dstType->isStructTy()) {
                             constrainNominalType(&inst);
                             if (srcType->isStructTy()) {
-                                solver.addConstraint(&inst, inst.getOperand(0));
+                                constraintSystem.addConstraint(&inst, inst.getOperand(0));
                             }
                         }
                     }
@@ -160,13 +161,12 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
             }
         }
     }
+
+    constraintSystem.buildGraph();
 }
 
 set<string> FunctionObjectFlow::traverseBack(const Value *val) {
-    // outs() << "===\n";
-    // solver.dumpConstraints();
-    // outs() << "===\n";
-    solver.buildGraph();
+    ConstraintSolverV1 solver(&constraintSystem);
     solver.solve();
     if (!solver.sanityCheck()) {
         string err = "Sanity check broken in function " + demangle(function->getName().str());
