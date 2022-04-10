@@ -20,6 +20,8 @@ void SetConstraintSolver::addConstraint(NodeTy a, NodeTy b, SetConstraintType c)
         idB = idMap[b];
     }
     constraints.emplace_back(idA, idB, c);
+    // outs() << "Added variable constraint: ";
+    // printConstraint(constraints.back());
 }
 
 void SetConstraintSolver::addLiteralConstraint(NodeTy a, const set<Elem> &literal,
@@ -37,6 +39,8 @@ void SetConstraintSolver::addLiteralConstraint(NodeTy a, const set<Elem> &litera
     constants.insert(literalId);
     answers[literalId] = literal;
     constraints.emplace_back(idA, literalId, c);
+    // outs() << "Added literal constraint: ";
+    // printConstraint(constraints.back());
 }
 
 void SetConstraintSolver::buildGraph() {
@@ -141,6 +145,76 @@ bool SetConstraintSolver::unionWith(set<Elem> &dst, const set<Elem> &src) {
         }
     }
     return changed;
+}
+
+optional<SetConstraintSolver::NodeTy> SetConstraintSolver::lookupNodeID(const NodeID &id) {
+    for (const auto &[node, nodeID] : idMap) {
+        if (nodeID == id) {
+            return node;
+        }
+    }
+    return std::nullopt;
+};
+
+string SetConstraintSolver::visualizeConstraintOperand(const SetConstraintSolver::NodeID &id) {
+    auto origin = lookupNodeID(id);
+    if (origin.has_value()) {
+        return getInstSeqNum(origin.value());
+    } else {
+        return "{" + list_out(answers[id]) + "}";
+    }
+}
+
+void SetConstraintSolver::printConstraint(SetConstraint constraint) {
+    if (constraint.c == SetConstraintType::Subset) {
+        outs() << "(" << lookupNodeID(constraint.a).value_or(nullptr) << ") "
+               << visualizeConstraintOperand(constraint.a) << " <= "
+               << "(" << lookupNodeID(constraint.b).value_or(nullptr) << ") "
+               << visualizeConstraintOperand(constraint.b) << "\n";
+    } else {
+        outs() << "(" << lookupNodeID(constraint.b).value_or(nullptr) << ") "
+               << visualizeConstraintOperand(constraint.b) << " <= "
+               << "(" << lookupNodeID(constraint.a).value_or(nullptr) << ") "
+               << visualizeConstraintOperand(constraint.a) << "\n";
+    }
+}
+
+void SetConstraintSolver::dumpConstraints() {
+    for (const SetConstraint &constraint : constraints) {
+        printConstraint(constraint);
+    }
+}
+
+static bool isSubsetOf(const set<string> &a, const set<string> &b) {
+    for (const auto &elem : a) {
+        if (b.count(elem) == 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool SetConstraintSolver::sanityCheck() {
+    queue<NodeID> q;
+    for (const NodeID &node : nodes) {
+        if (backwardEdges[node].empty() && !forwardEdges[node].empty()) {
+            q.push(node);
+        }
+    }
+
+    while (!q.empty()) {
+        NodeID cur = q.front();
+        q.pop();
+
+        for (const NodeID &next : forwardEdges[cur]) {
+            if (!isSubsetOf(answers[cur], answers[next])) {
+                return false;
+            }
+            q.push(next);
+        }
+    }
+
+    return true;
 }
 
 set<SetConstraintSolver::Elem> SetConstraintSolver::query(NodeTy v) {

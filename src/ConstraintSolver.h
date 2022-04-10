@@ -37,6 +37,10 @@ class SetConstraintSolver {
 
     bool unionWith(set<Elem> &dst, const set<Elem> &src);
 
+    optional<NodeTy> lookupNodeID(const NodeID &id);
+
+    string visualizeConstraintOperand(const NodeID &id);
+
    public:
     void addConstraint(NodeTy a, NodeTy b, SetConstraintType c = SetConstraintType::Subset);
 
@@ -46,6 +50,12 @@ class SetConstraintSolver {
     void buildGraph();
 
     void solve();
+
+    void printConstraint(SetConstraint constraint);
+
+    void dumpConstraints();
+
+    bool sanityCheck();
 
     set<Elem> query(NodeTy v);
 };

@@ -41,3 +41,15 @@ std::string stripClassName(std::string name) {
     }
     return name;
 }
+
+std::string getInstSeqNum(const llvm::Value *v) {
+    string s;
+    raw_string_ostream oss(s);
+    v->print(oss);
+    auto p1 = s.find('%');
+    auto p2 = s.find('=');
+    if (p1 != string::npos && p2 != string::npos && p1 < p2) {
+        return s.substr(p1, p2 - p1 - 1);
+    }
+    return s;
+}
