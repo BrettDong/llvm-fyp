@@ -87,6 +87,9 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
         totalCHATargets += CHA.size();
         totalOFATargets += OFA.size();
     }
+    if (CHA == OFA) {
+        return;
+    }
     outs() << "In function " << demangle(callInst->getFunction()->getName().str()) << "\n";
     outs() << "At virtual call " << *callInst << "\n";
     outs() << "Class hierarchy analysis (" << CHA.size() << "): " << list_out(CHA) << '\n';
