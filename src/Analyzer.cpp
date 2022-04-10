@@ -46,11 +46,20 @@ set<string> Analyzer::analyzeVirtCall(const CallBase *callInst) {
         // outs() << "cannot get virt call type" << '\n';
         return set<string>();
     }
-    set<string> derivedClasses = classes.getHierarchyGraph().queryDerivedClasses(type.value());
-    derivedClasses.insert(type.value());
+    set<string> derivedClasses =
+        classes.getHierarchyGraph().querySelfWithDerivedClasses(type.value());
     set<string> targets;
     for (const string &derived : derivedClasses) {
-        Function *target = classes.getClass(derived).getVTable()->getEntry(index.value());
+        VTable *vtable = classes.getClass(derived).getVTable();
+        if (vtable == nullptr) {
+            // outs() << derived << " does not have VTable!\n";
+            continue;
+        }
+        Function *target = vtable->getEntry(index.value());
+        if (target == nullptr) {
+            // outs() << index.value() << " is out-of-bound in VTable of " << derived << '\n';
+            continue;
+        }
         targets.insert(demangle(target->getName().str()));
     }
     auto pure_virtual = targets.find("__cxa_pure_virtual");
@@ -61,9 +70,6 @@ set<string> Analyzer::analyzeVirtCall(const CallBase *callInst) {
 }
 
 void Analyzer::analyzeFunction(const Function &f) {
-    FunctionObjectFlow flow;
-    flow.analyzeFunction(&f);
-
     for (auto &bb : f) {
         for (auto &inst : bb) {
             if (auto callInst = dyn_cast<CallBase>(&inst)) {
@@ -71,24 +77,21 @@ void Analyzer::analyzeFunction(const Function &f) {
                     set<string> targets = analyzeVirtCall(callInst);
                     if (!targets.empty()) {
                         const Value *obj = callInst->getOperand(0);
-                        ObjectFlowOrigin origin = flow.traverseBack(obj);
+                        FunctionObjectFlow flow(&classes);
+                        flow.analyzeFunction(&f);
+                        set<string> fine = flow.traverseBack(obj);
+
                         outs() << "Indirect call " << callInst << " has " << targets.size()
-                               << " targets:\n";
+                               << " class hierarchy analysis targets:\n";
                         for (auto &target : targets) {
                             outs() << demangle(f.getName().str()) << " =(I)=> " << target << "\n";
                         }
-                        outs() << "Object origin: ";
-                        if (origin.argument) {
-                            outs() << "[arg]";
+
+                        outs() << "Indirect call " << callInst << " has " << fine.size()
+                               << " object-flow analysis targets:\n";
+                        for (auto &target : fine) {
+                            outs() << demangle(f.getName().str()) << " =(I)=> " << target << "\n";
                         }
-                        if (origin.instantiated) {
-                            outs() << "[instantiated]";
-                        }
-                        if (origin.retVal) {
-                            outs() << "[ret-val]";
-                        }
-                        outs() << '\n';
-                        outs() << '\n';
                     }
                 }
             }
@@ -126,8 +129,8 @@ void Analyzer::analyze(const vector<string> &files) {
 
     // outs() << "Analyzing main function" << '\n';
     // analyzeFunction(*functions["_Z3fooP5Shaped"]);
-    // analyzeFunction(*functions["main"]);
-    for (auto it : functions) {
+    analyzeFunction(*functions["main"]);
+    /*for (auto it : functions) {
         analyzeFunction(*it.second);
-    }
+    }*/
 }
