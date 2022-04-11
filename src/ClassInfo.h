@@ -18,6 +18,8 @@ class ClassInfo {
 
     [[nodiscard]] const std::vector<std::string> &getVTable() const { return vTable; }
     [[nodiscard]] const std::set<std::string> &getParentClasses() const { return parentClasses; }
+
+    [[nodiscard]] std::string dumpVTable() const;
 };
 
 #endif  // CLASS_INFO_H

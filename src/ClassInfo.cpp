@@ -54,3 +54,15 @@ void ClassInfo::decodeRTTI(const Constant *initializer) {
         }
     }
 }
+
+std::string ClassInfo::dumpVTable() const {
+    std::ostringstream oss;
+    for (const auto &entry : vTable) {
+        oss << '"' << demangle(entry) << '"' << ", ";
+    }
+    std::string str = oss.str();
+    if (str.size() > 2) {
+        str.erase(str.end() - 2, str.end());
+    }
+    return str;
+}
