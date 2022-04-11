@@ -17,8 +17,13 @@ void ClassInfo::decodeVTable(const Constant *initializer) {
                     if (expr->isCast()) {
                         auto *constant = dyn_cast<Constant>(expr);
                         if (Constant *cast = ConstantExpr::getBitCast(constant, expr->getType())) {
-                            if (auto *f = dyn_cast<Function>(cast->getOperand(0))) {
+                            Value *operand = cast->getOperand(0);
+                            if (auto *f = dyn_cast<Function>(operand)) {
                                 vTable.push_back(f->getName().str());
+                            } else if (auto *a = dyn_cast<GlobalAlias>(operand)) {
+                                if (auto *af = dyn_cast<Function>(a->getAliasee())) {
+                                    vTable.push_back(af->getName().str());
+                                }
                             }
                         }
                     }
