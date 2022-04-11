@@ -13,16 +13,19 @@ class FunctionObjectFlow {
     ConstraintSystem constraintSystem;
 
     ClassAnalyzer *classes;
-    const Function *function;
+    const Function *function = nullptr;
+    vector<const Value *> ret;
 
     void handleCallBase(const Instruction *inst);
 
    public:
-    explicit FunctionObjectFlow(ClassAnalyzer *classes) : classes(classes), function(nullptr) {}
+    explicit FunctionObjectFlow(ClassAnalyzer *classes) : classes(classes) {}
 
     void analyzeFunction(const Function *f);
 
     set<string> traverseBack(const Value *val);
+
+    set<string> queryRetType();
 };
 
 #endif  // FUNCTION_OBJECT_FLOW_H

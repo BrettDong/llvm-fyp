@@ -90,6 +90,16 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                     constrainNominalType(&inst);
                     break;
                 }
+                case Instruction::Ret: {
+                    if (inst.getNumOperands() > 0) {
+                        const Value *operand = inst.getOperand(0);
+                        if (classes->isPolymorphicType(operand->getType())) {
+                            constrainNominalType(operand);
+                            ret.emplace_back(operand);
+                        }
+                    }
+                    break;
+                }
                 default: {
                     // outs() << "Unknown opcode " << inst.getOpcodeName() << '\n';
                 }
@@ -108,4 +118,20 @@ set<string> FunctionObjectFlow::traverseBack(const Value *val) {
         throw std::runtime_error(err.c_str());
     }
     return solver.query(val);
+}
+
+set<string> FunctionObjectFlow::queryRetType() {
+    ConstraintSolverV2 solver(&constraintSystem);
+    solver.solve();
+    if (!solver.sanityCheck()) {
+        string err = "Sanity check broken in function " + demangle(function->getName().str());
+        throw std::runtime_error(err.c_str());
+    }
+    set<string> ans;
+    for (const Value *r : ret) {
+        for (const string &target : solver.query(r)) {
+            ans.insert(target);
+        }
+    }
+    return ans;
 }
