@@ -9,16 +9,11 @@
 class FunctionObjectFlow {
    private:
     vector<const Value *> arguments;
-    set<const Value *> alloca;
-    set<const Value *> retVals;
-    map<const Value *, set<string>> instantiations;
 
     ConstraintSystem constraintSystem;
 
     ClassAnalyzer *classes;
     const Function *function;
-
-    void addInstantiation(const Value *dst, const string &className);
 
     void handleCallBase(const Instruction *inst);
 
