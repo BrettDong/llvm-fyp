@@ -2,6 +2,15 @@
 
 #include "Utils.h"
 
+bool ClassAnalyzer::isPolymorphicType(const llvm::Type *ty) const {
+    if (ty->isPointerTy() && ty->getPointerElementType()->isStructTy()) {
+        auto className = stripClassName(ty->getPointerElementType()->getStructName().str());
+        return classes.count(className) != 0;
+    } else {
+        return false;
+    }
+}
+
 bool ClassAnalyzer::isClassExist(const std::string &className) const {
     return classes.count(className) != 0;
 }

@@ -21,21 +21,6 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
 void FunctionObjectFlow::analyzeFunction(const Function *f) {
     function = f;
 
-    auto isPolymorphicType = [this](const Value *v) -> bool {
-        if (!v->getType()->isPointerTy()) {
-            return false;
-        }
-        auto ty = v->getType()->getPointerElementType();
-        if (!ty->isStructTy()) {
-            return false;
-        }
-        auto tyName = stripClassName(ty->getStructName().str());
-        if (!classes->isClassExist(tyName)) {
-            return false;
-        }
-        return true;
-    };
-
     auto derivedClassesOf = [this](const Value *v) -> set<string> {
         auto ty = v->getType()->getPointerElementType();
         auto tyName = stripClassName(ty->getStructName().str());
@@ -43,7 +28,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
     };
 
     auto constrainNominalType = [=](const Value *v) {
-        if (isPolymorphicType(v)) {
+        if (classes->isPolymorphicType(v->getType())) {
             auto set = derivedClassesOf(v);
             // outs() << "constrain (" << v << ") [" << *v << "] to {" << list_out(set) << "}\n";
             constraintSystem.addLiteralConstraint(v, set);

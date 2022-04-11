@@ -12,6 +12,7 @@ class ClassAnalyzer {
     ClassHierarchyGraph hierarchy;
 
    public:
+    [[nodiscard]] bool isPolymorphicType(const llvm::Type *ty) const;
     [[nodiscard]] bool isClassExist(const std::string &className) const;
     [[nodiscard]] const ClassInfo &getClass(const std::string &className) const;
 
