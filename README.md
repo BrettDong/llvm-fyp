@@ -1,6 +1,12 @@
-# COMP4801 Final Year Project
+# Course work of COMP4801 Final Year Project
 
 ![GitHub Actions](https://github.com/BrettDong/llvm-fyp/actions/workflows/build.yml/badge.svg)
+
+## Introduction
+
+This is a LLVM-based static analysis tool that resolves virtual call targets in C++ programs.
+
+It reconstructs class virtual tables and inheritance hierarchy information from LLVM IR, then performs intra-function object flow analysis to refine the set of possible dynamic types of polymorphic class objects.
 
 ## Building
 
