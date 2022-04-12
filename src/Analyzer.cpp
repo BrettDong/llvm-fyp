@@ -22,16 +22,25 @@ std::optional<int> Analyzer::getVTableIndex(const CallBase *callInst) const {
 }
 
 std::optional<HashTy> Analyzer::getVirtCallType(const CallBase *callInst) const {
-    if (callInst->arg_size() < 1) return std::nullopt;
-    if (const Type *type = callInst->getArgOperand(0)->getType()) {
-        if (type->isPointerTy() && type->getPointerElementType()->isStructTy()) {
-            auto name = type->getPointerElementType()->getStructName();
-            if (classes->isPolymorphicType(name)) {
-                return symbols->hashClassName(name);
-            }
+    auto getClassType = [this](const Value *operand) -> std::optional<HashTy> {
+        if (classes->isPolymorphicType(operand->getType())) {
+            auto className = operand->getType()->getPointerElementType()->getStructName();
+            return symbols->hashClassName(className);
         }
+        return std::nullopt;
+    };
+
+    if (callInst->hasStructRetAttr()) {
+        if (callInst->arg_size() < 2) {
+            return std::nullopt;
+        }
+        return getClassType(callInst->getArgOperand(1));
+    } else {
+        if (callInst->arg_size() < 1) {
+            return std::nullopt;
+        }
+        return getClassType(callInst->getArgOperand(0));
     }
-    return std::nullopt;
 }
 
 set<string> Analyzer::collectVirtualMethods(const set<HashTy> &types, int index) const {
