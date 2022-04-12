@@ -9,15 +9,21 @@ using namespace std;
 using namespace llvm;
 
 void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
-    if (inst->getType()->isPointerTy() && inst->getType()->getPointerElementType()->isStructTy()) {
-        auto ty = inst->getType()->getPointerElementType();
-        string className = stripClassName(ty->getStructName().str());
-        if (classes->isClassExist(className)) {
-            constraintSystem.addLiteralConstraint(
-                dyn_cast<Value>(inst),
-                classes->getHierarchyGraph().querySelfWithDerivedClasses(className),
-                ConstraintRelation::Superset);
+    if (classes->isPolymorphicType(inst->getType())) {
+        auto callInst = dyn_cast<CallBase>(inst);
+        if (auto callee = callInst->getCalledFunction()) {
+            if (functionRetTypes.count(callee->getName().str()) > 0) {
+                constraintSystem.addLiteralConstraint(dyn_cast<Value>(inst),
+                                                      functionRetTypes[callee->getName().str()],
+                                                      ConstraintRelation::Superset);
+            }
         }
+        auto nominalTy = inst->getType()->getPointerElementType();
+        auto className = stripClassName(nominalTy->getStructName().str());
+        constraintSystem.addLiteralConstraint(
+            dyn_cast<Value>(inst),
+            classes->getHierarchyGraph().querySelfWithDerivedClasses(className),
+            ConstraintRelation::Superset);
     }
 }
 

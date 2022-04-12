@@ -154,6 +154,20 @@ void Analyzer::analyze(const vector<string> &files) {
         }
     }
 
+    for (const auto &[name, f] : functions) {
+        if (classes.isPolymorphicType(f->getReturnType())) {
+            FunctionObjectFlow flow(&classes, functionRetTypes);
+            flow.analyzeFunction(f);
+            set<string> OFA = flow.queryRetType();
+            auto ty = f->getReturnType()->getPointerElementType();
+            auto className = stripClassName(ty->getStructName().str());
+            set<string> CHA = classes.getHierarchyGraph().querySelfWithDerivedClasses(className);
+            if (!OFA.empty() && OFA.size() < CHA.size()) {
+                functionRetTypes.insert({name, OFA});
+            }
+        }
+    }
+
     printTime(start);
     outs() << "Analyzing " << functions.size() << " functions" << '\n';
     // outs() << "Analyzing main function" << '\n';
