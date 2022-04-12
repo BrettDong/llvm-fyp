@@ -6,8 +6,6 @@
 
 bool beginsWith(const std::string &str, const std::string &prefix);
 std::string removePrefix(const std::string &str, const std::string &prefix);
-std::string stripTrailing(std::string className);
-std::string stripClassName(std::string name);
 std::string getInstSeqNum(const llvm::Value *v);
 
 template <typename T>
