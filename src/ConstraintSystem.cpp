@@ -24,7 +24,7 @@ void ConstraintSystem::addConstraint(NodeTy a, NodeTy b, ConstraintRelation c) {
     // printConstraint(constraints.back());
 }
 
-void ConstraintSystem::addLiteralConstraint(NodeTy a, const set<Elem> &literal,
+void ConstraintSystem::addLiteralConstraint(NodeTy a, const std::set<Elem> &literal,
                                             ConstraintRelation c) {
     NodeID idA = 0;
     if (idMap.count(a) == 0) {
@@ -61,7 +61,7 @@ void ConstraintSystem::buildGraph() {
     }
 }
 
-optional<ConstraintSystem::NodeTy> ConstraintSystem::lookupNodeID(const NodeID &id) {
+std::optional<ConstraintSystem::NodeTy> ConstraintSystem::lookupNodeID(const NodeID &id) {
     for (const auto &[node, nodeID] : idMap) {
         if (nodeID == id) {
             return node;
@@ -70,7 +70,7 @@ optional<ConstraintSystem::NodeTy> ConstraintSystem::lookupNodeID(const NodeID &
     return std::nullopt;
 };
 
-string ConstraintSystem::visualizeConstraintOperand(const ConstraintSystem::NodeID &id) {
+std::string ConstraintSystem::visualizeConstraintOperand(const ConstraintSystem::NodeID &id) {
     auto origin = lookupNodeID(id);
     if (origin.has_value()) {
         return getInstSeqNum(origin.value());
@@ -81,15 +81,15 @@ string ConstraintSystem::visualizeConstraintOperand(const ConstraintSystem::Node
 
 void ConstraintSystem::printConstraint(Constraint constraint) {
     if (constraint.c == ConstraintRelation::Subset) {
-        outs() << "(" << lookupNodeID(constraint.a).value_or(nullptr) << ") "
-               << visualizeConstraintOperand(constraint.a) << " <= "
-               << "(" << lookupNodeID(constraint.b).value_or(nullptr) << ") "
-               << visualizeConstraintOperand(constraint.b) << "\n";
+        llvm::outs() << "(" << lookupNodeID(constraint.a).value_or(nullptr) << ") "
+                     << visualizeConstraintOperand(constraint.a) << " <= "
+                     << "(" << lookupNodeID(constraint.b).value_or(nullptr) << ") "
+                     << visualizeConstraintOperand(constraint.b) << "\n";
     } else {
-        outs() << "(" << lookupNodeID(constraint.b).value_or(nullptr) << ") "
-               << visualizeConstraintOperand(constraint.b) << " <= "
-               << "(" << lookupNodeID(constraint.a).value_or(nullptr) << ") "
-               << visualizeConstraintOperand(constraint.a) << "\n";
+        llvm::outs() << "(" << lookupNodeID(constraint.b).value_or(nullptr) << ") "
+                     << visualizeConstraintOperand(constraint.b) << " <= "
+                     << "(" << lookupNodeID(constraint.a).value_or(nullptr) << ") "
+                     << visualizeConstraintOperand(constraint.a) << "\n";
     }
 }
 

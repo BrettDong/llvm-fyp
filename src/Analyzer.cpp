@@ -1,7 +1,12 @@
 #include "Analyzer.h"
 
+#include <llvm/IRReader/IRReader.h>
+
 #include "FunctionObjectFlow.h"
 #include "Utils.h"
+
+using namespace std;
+using namespace llvm;
 
 std::optional<int> Analyzer::getVTableIndex(const CallBase *callInst) const {
     const LoadInst *loadInst = dyn_cast<LoadInst>(callInst->getCalledOperand());
@@ -73,7 +78,7 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
     set<string> CHA = collectVirtualMethods(derivedClasses, index.value());
 
     const Value *obj = callInst->getOperand(0);
-    FunctionObjectFlow flow(&classes);
+    FunctionObjectFlow flow(&classes, functionRetTypes);
     flow.analyzeFunction(callInst->getParent()->getParent());
     set<string> OFA = collectVirtualMethods(flow.traverseBack(obj), index.value());
 

@@ -17,24 +17,24 @@ class ConstraintSolver {
     virtual ~ConstraintSolver() = default;
     virtual void solve() = 0;
     virtual bool sanityCheck() = 0;
-    virtual set<Elem> query(NodeTy v) = 0;
+    virtual std::set<Elem> query(NodeTy v) = 0;
 };
 
 class ConstraintSolverV1 : public ConstraintSolver {
    protected:
     ConstraintSystem *system;
-    map<NodeID, set<Elem>> answers;
+    std::map<NodeID, std::set<Elem>> answers;
 
-    bool intersectWith(set<Elem> &dst, const set<Elem> &src);
+    bool intersectWith(std::set<Elem> &dst, const std::set<Elem> &src);
 
-    bool unionWith(set<Elem> &dst, const set<Elem> &src);
+    bool unionWith(std::set<Elem> &dst, const std::set<Elem> &src);
 
    public:
     explicit ConstraintSolverV1(ConstraintSystem *system)
         : ConstraintSolver(system), system(system) {}
     void solve() override;
     bool sanityCheck() override;
-    set<Elem> query(NodeTy v) override;
+    std::set<Elem> query(NodeTy v) override;
 };
 
 class ConstraintSolverV2 : public ConstraintSolverV1 {

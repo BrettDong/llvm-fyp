@@ -5,6 +5,9 @@
 #include "ConstraintSolver.h"
 #include "Utils.h"
 
+using namespace std;
+using namespace llvm;
+
 void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
     if (inst->getType()->isPointerTy() && inst->getType()->getPointerElementType()->isStructTy()) {
         auto ty = inst->getType()->getPointerElementType();

@@ -2,6 +2,8 @@
 
 #include "Utils.h"
 
+using namespace llvm;
+
 void ClassInfo::decodeVTable(const Constant *initializer) {
     if (!vTable.empty()) {
         return;

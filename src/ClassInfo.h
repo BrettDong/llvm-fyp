@@ -13,8 +13,8 @@ class ClassInfo {
    public:
     explicit ClassInfo(const std::string &className) : className(className) {}
 
-    void decodeVTable(const Constant *initializer);
-    void decodeRTTI(const Constant *initializer);
+    void decodeVTable(const llvm::Constant *initializer);
+    void decodeRTTI(const llvm::Constant *initializer);
 
     [[nodiscard]] const std::vector<std::string> &getVTable() const { return vTable; }
     [[nodiscard]] const std::set<std::string> &getParentClasses() const { return parentClasses; }

@@ -11,7 +11,7 @@ std::string stripClassName(std::string name);
 std::string getInstSeqNum(const llvm::Value *v);
 
 template <typename T>
-std::string list_out(const T &collection, string delim = " ") {
+std::string list_out(const T &collection, std::string delim = " ") {
     std::string answer;
     for (const auto &elem : collection) {
         answer += elem;

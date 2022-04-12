@@ -6,11 +6,11 @@
 
 class ClassHierarchyGraph {
    private:
-    map<string, set<string>> subClasses;
+    std::map<std::string, std::set<std::string>> subClasses;
 
    public:
     void addRelationship(const std::string &base, const std::string &derived);
-    set<string> querySelfWithDerivedClasses(const std::string &base) const;
+    std::set<std::string> querySelfWithDerivedClasses(const std::string &base) const;
 };
 
 #endif  // CLASS_HIERARCHY_GRAPH_H

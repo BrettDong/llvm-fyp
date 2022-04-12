@@ -1,8 +1,8 @@
 #include "ConstraintSolver.h"
 
-bool ConstraintSolverV1::intersectWith(set<Elem> &dst, const set<Elem> &src) {
+bool ConstraintSolverV1::intersectWith(std::set<Elem> &dst, const std::set<Elem> &src) {
     bool changed = false;
-    set<Elem> toBeRemoved;
+    std::set<Elem> toBeRemoved;
     for (const Elem &elem : dst) {
         if (src.count(elem) == 0) {
             toBeRemoved.insert(elem);
@@ -17,7 +17,7 @@ bool ConstraintSolverV1::intersectWith(set<Elem> &dst, const set<Elem> &src) {
     return changed;
 }
 
-bool ConstraintSolverV1::unionWith(set<Elem> &dst, const set<Elem> &src) {
+bool ConstraintSolverV1::unionWith(std::set<Elem> &dst, const std::set<Elem> &src) {
     bool changed = false;
     for (const Elem &elem : src) {
         if (dst.count(elem) == 0) {
@@ -29,7 +29,7 @@ bool ConstraintSolverV1::unionWith(set<Elem> &dst, const set<Elem> &src) {
 }
 
 void ConstraintSolverV1::solve() {
-    queue<NodeID> q;
+    std::queue<NodeID> q;
 
     for (const auto &[node, val] : system->constants) {
         answers[node] = val;
@@ -92,7 +92,7 @@ void ConstraintSolverV1::solve() {
     }
 }
 
-static bool isSubsetOf(const set<string> &a, const set<string> &b) {
+static bool isSubsetOf(const std::set<std::string> &a, const std::set<std::string> &b) {
     for (const auto &elem : a) {
         if (b.count(elem) == 0) {
             return false;
@@ -102,8 +102,8 @@ static bool isSubsetOf(const set<string> &a, const set<string> &b) {
 }
 
 bool ConstraintSolverV1::sanityCheck() {
-    queue<NodeID> q;
-    set<NodeID> visited;
+    std::queue<NodeID> q;
+    std::set<NodeID> visited;
     for (const NodeID &node : system->nodes) {
         if (system->backwardEdges[node].empty() && !system->forwardEdges[node].empty()) {
             q.push(node);
@@ -128,7 +128,7 @@ bool ConstraintSolverV1::sanityCheck() {
     return true;
 }
 
-set<ConstraintSolverV1::Elem> ConstraintSolverV1::query(NodeTy v) {
+std::set<ConstraintSolverV1::Elem> ConstraintSolverV1::query(NodeTy v) {
     if (system->idMap.count(v) == 0) {
         return {};
     }
@@ -137,12 +137,12 @@ set<ConstraintSolverV1::Elem> ConstraintSolverV1::query(NodeTy v) {
 
 void ConstraintSolverV2::solve() {
     ConstraintSolverV1::solve();
-    queue<NodeID> q;
+    std::queue<NodeID> q;
     for (const NodeID &node : system->nodes) {
         if (system->constants.count(node) > 0) {
             continue;
         }
-        set<Elem> unionOf;
+        std::set<Elem> unionOf;
         for (const NodeID &prev : system->backwardEdges[node]) {
             unionWith(unionOf, answers[prev]);
         }
@@ -160,7 +160,7 @@ void ConstraintSolverV2::solve() {
     while (!q.empty()) {
         NodeID cur = q.front();
         q.pop();
-        set<Elem> unionOf;
+        std::set<Elem> unionOf;
         for (const NodeID &prev : system->backwardEdges[cur]) {
             unionWith(unionOf, answers[prev]);
         }

@@ -2,19 +2,20 @@
 
 void ClassHierarchyGraph::addRelationship(const std::string &base, const std::string &derived) {
     if (subClasses.count(base) == 0) {
-        subClasses[base] = set<string>();
+        subClasses[base] = {};
     }
     subClasses[base].insert(derived);
 }
 
-set<string> ClassHierarchyGraph::querySelfWithDerivedClasses(const std::string &base) const {
-    set<string> result{base};
+std::set<std::string> ClassHierarchyGraph::querySelfWithDerivedClasses(
+    const std::string &base) const {
+    std::set<std::string> result{base};
     if (subClasses.count(base) == 0) {
         return result;
     }
     for (const std::string &subClass : subClasses.at(base)) {
         result.insert(subClass);
-        set<string> query = querySelfWithDerivedClasses(subClass);
+        std::set<std::string> query = querySelfWithDerivedClasses(subClass);
         for (const std::string &subSubClass : query) {
             result.insert(subSubClass);
         }

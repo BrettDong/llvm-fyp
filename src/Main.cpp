@@ -1,8 +1,10 @@
 #include "Analyzer.h"
 
+using namespace std;
+
 int main(int argc, char **argv) {
     if (argc < 2) {
-        errs() << "Usage: Analyzer <directory or file path>" << '\n';
+        llvm::errs() << "Usage: Analyzer <directory or file path>" << '\n';
         return 1;
     }
 

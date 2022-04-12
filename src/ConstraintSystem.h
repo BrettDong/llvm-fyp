@@ -8,9 +8,9 @@ enum class ConstraintRelation : int { Subset, Superset };
 
 class ConstraintSystem {
    private:
-    using NodeTy = const Value *;
+    using NodeTy = const llvm::Value *;
     using NodeID = int;
-    using Elem = string;
+    using Elem = std::string;
 
     friend class ConstraintSolver;
     friend class ConstraintSolverV1;
@@ -24,26 +24,26 @@ class ConstraintSystem {
         Constraint(NodeID a, NodeID b, ConstraintRelation c) : a(a), b(b), c(c) {}
     };
 
-    vector<Constraint> constraints;
-    map<NodeID, set<Elem>> constants;
-    set<NodeID> nodes;
-    map<NodeTy, NodeID> idMap;
+    std::vector<Constraint> constraints;
+    std::map<NodeID, std::set<Elem>> constants;
+    std::set<NodeID> nodes;
+    std::map<NodeTy, NodeID> idMap;
     NodeID nextId = 0;
 
-    map<NodeID, set<NodeID>> forwardEdges;   // A -> B where A is subset of B
-    map<NodeID, set<NodeID>> backwardEdges;  // A <- B where A is a subset of B
+    std::map<NodeID, std::set<NodeID>> forwardEdges;   // A -> B where A is subset of B
+    std::map<NodeID, std::set<NodeID>> backwardEdges;  // A <- B where A is a subset of B
 
-    map<NodeID, bool> backwardVisited;
-    map<NodeID, bool> forwardVisited;
+    std::map<NodeID, bool> backwardVisited;
+    std::map<NodeID, bool> forwardVisited;
 
-    optional<NodeTy> lookupNodeID(const NodeID &id);
+    std::optional<NodeTy> lookupNodeID(const NodeID &id);
 
-    string visualizeConstraintOperand(const NodeID &id);
+    std::string visualizeConstraintOperand(const NodeID &id);
 
    public:
     void addConstraint(NodeTy a, NodeTy b, ConstraintRelation c = ConstraintRelation::Subset);
 
-    void addLiteralConstraint(NodeTy a, const set<Elem> &literal,
+    void addLiteralConstraint(NodeTy a, const std::set<Elem> &literal,
                               ConstraintRelation c = ConstraintRelation::Subset);
 
     void buildGraph();

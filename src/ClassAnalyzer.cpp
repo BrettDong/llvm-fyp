@@ -2,6 +2,8 @@
 
 #include "Utils.h"
 
+using namespace llvm;
+
 bool ClassAnalyzer::isPolymorphicType(const llvm::Type *ty) const {
     if (ty->isPointerTy() && ty->getPointerElementType()->isStructTy()) {
         auto className = stripClassName(ty->getPointerElementType()->getStructName().str());
@@ -52,7 +54,7 @@ void ClassAnalyzer::buildClassHierarchyGraph() {
         if (it.second.getParentClasses().empty()) {
             continue;
         }
-        for (const string &parent : it.second.getParentClasses()) {
+        for (const std::string &parent : it.second.getParentClasses()) {
             hierarchy.addRelationship(parent, it.first);
         }
     }

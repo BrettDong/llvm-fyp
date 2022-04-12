@@ -8,24 +8,27 @@
 
 class FunctionObjectFlow {
    private:
-    vector<const Value *> arguments;
+    std::vector<const llvm::Value *> arguments;
 
     ConstraintSystem constraintSystem;
 
     ClassAnalyzer *classes;
-    const Function *function = nullptr;
-    vector<const Value *> ret;
+    std::map<std::string, std::set<std::string>> &functionRetTypes;
+    const llvm::Function *function = nullptr;
+    std::vector<const llvm::Value *> ret;
 
-    void handleCallBase(const Instruction *inst);
+    void handleCallBase(const llvm::Instruction *inst);
 
    public:
-    explicit FunctionObjectFlow(ClassAnalyzer *classes) : classes(classes) {}
+    explicit FunctionObjectFlow(ClassAnalyzer *classes,
+                                std::map<std::string, std::set<std::string>> &functionRetTypes)
+        : classes(classes), functionRetTypes(functionRetTypes) {}
 
-    void analyzeFunction(const Function *f);
+    void analyzeFunction(const llvm::Function *f);
 
-    set<string> traverseBack(const Value *val);
+    std::set<std::string> traverseBack(const llvm::Value *val);
 
-    set<string> queryRetType();
+    std::set<std::string> queryRetType();
 };
 
 #endif  // FUNCTION_OBJECT_FLOW_H

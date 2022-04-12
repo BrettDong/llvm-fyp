@@ -16,7 +16,7 @@ class ClassAnalyzer {
     [[nodiscard]] bool isClassExist(const std::string &className) const;
     [[nodiscard]] const ClassInfo &getClass(const std::string &className) const;
 
-    void analyzeModule(Module *m);
+    void analyzeModule(llvm::Module *m);
 
     void buildClassHierarchyGraph();
 
