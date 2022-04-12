@@ -21,7 +21,8 @@ class Analyzer {
 
     int totalCHATargets = 0;
     int totalOFATargets = 0;
-    int totalCallSites = 0;
+    int totalTrivialCallSites = 0;
+    int totalNonTrivialCallSites = 0;
 
    private:
     std::optional<int> getVTableIndex(const llvm::CallBase *callInst) const;

@@ -84,9 +84,14 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
 
     if (CHA.empty()) {
         outs() << "No target found when calling \"" << type.value() << "\" at vtable index "
-               << index.value() << ": " << *callInst << '\n';
+               << index.value() << " in " << (callInst->getFunction()->getName().str()) << " : "
+               << *callInst << '\n';
+    } else if (CHA.size() == 1) {
+        ++totalTrivialCallSites;
+        totalCHATargets += CHA.size();
+        totalOFATargets += OFA.size();
     } else {
-        ++totalCallSites;
+        ++totalNonTrivialCallSites;
         totalCHATargets += CHA.size();
         totalOFATargets += OFA.size();
     }
@@ -171,16 +176,16 @@ void Analyzer::analyze(const vector<string> &files) {
 
     printTime(start);
     outs() << "Analyzing " << functions.size() << " functions" << '\n';
-    // outs() << "Analyzing main function" << '\n';
-    // analyzeFunction(*functions["_Z3fooP5Shaped"]);
-    // analyzeFunction(*functions["main"]);
+
     for (const auto &it : functions) {
         analyzeFunction(*it.second);
     }
 
     printTime(start);
     outs() << "Analysis completed" << '\n';
-    outs() << "Total virtual call sites: " << totalCallSites << '\n';
+    outs() << "Total virtual call sites: " << totalTrivialCallSites + totalNonTrivialCallSites
+           << '\n';
+    outs() << "Total non-trivial virtual call sites: " << totalNonTrivialCallSites << '\n';
     outs() << "Total targets reported by class hierarchy analysis: " << totalCHATargets << '\n';
     outs() << "Total targets reported by object flow analysis: " << totalOFATargets << '\n';
 }
