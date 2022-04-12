@@ -87,7 +87,7 @@ One can instruct `clang++` compiler to output LLVM IR bitcode instead of binary 
 As an example, for a CMake C++ project, one can compile it to LLVM IR with the following commands:
 
 ```
-cmake -S build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS=-flto
+cmake -S . -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS=-flto
 cmake --build build -j 4
 ```
 
