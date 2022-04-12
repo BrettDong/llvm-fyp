@@ -8,19 +8,18 @@
 class ClassInfo {
    private:
     std::vector<std::string> vTable;
-    std::set<std::string> parentClasses;
-    std::string className;
+    std::set<HashTy> parentClasses;
+    HashTy hash;
     Symbols *symbols;
 
    public:
-    explicit ClassInfo(const std::string &className, Symbols *symbols)
-        : className(className), symbols(symbols) {}
+    explicit ClassInfo(HashTy hash, Symbols *symbols) : hash(hash), symbols(symbols) {}
 
     void decodeVTable(const llvm::Constant *initializer);
     void decodeRTTI(const llvm::Constant *initializer);
 
     [[nodiscard]] const std::vector<std::string> &getVTable() const { return vTable; }
-    [[nodiscard]] const std::set<std::string> &getParentClasses() const { return parentClasses; }
+    [[nodiscard]] const std::set<HashTy> &getParentClasses() const { return parentClasses; }
 
     [[nodiscard]] std::string dumpVTable() const;
 };

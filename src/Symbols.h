@@ -18,6 +18,8 @@ class Symbols {
 
     HashTy hashClassName(llvm::StringRef symbol);
 
+    bool exist(llvm::StringRef symbol) const;
+
     [[nodiscard]] std::string getClassName(HashTy hash) const;
 };
 

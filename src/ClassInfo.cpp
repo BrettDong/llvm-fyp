@@ -48,7 +48,8 @@ void ClassInfo::decodeRTTI(const Constant *initializer) {
                     if (auto *v = dyn_cast<GlobalVariable>(cast->getOperand(0))) {
                         std::string name = demangle(v->getName().str());
                         if (beginsWith(name, "typeinfo for ")) {
-                            parentClasses.insert(removePrefix(name, "typeinfo for "));
+                            auto className = removePrefix(name, "typeinfo for ");
+                            parentClasses.insert(symbols->hashClassName(className));
                         }
                     }
                 }

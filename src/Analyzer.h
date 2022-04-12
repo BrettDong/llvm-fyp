@@ -15,7 +15,7 @@ class Analyzer {
     std::map<std::string, std::unique_ptr<llvm::Module>> modules;
     std::map<std::string, const llvm::Function *> functions;
 
-    std::map<std::string, std::set<std::string>> functionRetTypes;
+    std::map<std::string, std::set<HashTy>> functionRetTypes;
 
     std::unique_ptr<Symbols> symbols;
     std::unique_ptr<ClassAnalyzer> classes;
@@ -27,8 +27,8 @@ class Analyzer {
 
    private:
     std::optional<int> getVTableIndex(const llvm::CallBase *callInst) const;
-    std::optional<std::string> getVirtCallType(const llvm::CallBase *callInst) const;
-    [[nodiscard]] std::set<std::string> collectVirtualMethods(const std::set<std::string> &types,
+    std::optional<HashTy> getVirtCallType(const llvm::CallBase *callInst) const;
+    [[nodiscard]] std::set<std::string> collectVirtualMethods(const std::set<HashTy> &types,
                                                               int index) const;
     void analyzeVirtCall(const llvm::CallBase *callInst);
     void analyzeFunction(const llvm::Function &f);

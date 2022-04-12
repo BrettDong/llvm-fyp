@@ -21,24 +21,22 @@ std::optional<int> Analyzer::getVTableIndex(const CallBase *callInst) const {
     return index->getZExtValue();
 }
 
-std::optional<string> Analyzer::getVirtCallType(const CallBase *callInst) const {
+std::optional<HashTy> Analyzer::getVirtCallType(const CallBase *callInst) const {
     if (callInst->arg_size() < 1) return std::nullopt;
-    const Type *op0Ty = callInst->getArgOperand(0)->getType();
-    if (op0Ty == nullptr) return std::nullopt;
-    if (!op0Ty->isPointerTy()) return std::nullopt;
-    const StructType *ty = dyn_cast<StructType>(op0Ty->getPointerElementType());
-    if (ty == nullptr) return std::nullopt;
-    std::string className = stripClassName(ty->getName().str());
-    if (!classes->isClassExist(className)) {
-        // outs() << "Non-existing class name " << className << '\n';
-        return std::nullopt;
+    if (const Type *type = callInst->getArgOperand(0)->getType()) {
+        if (type->isPointerTy() && type->getPointerElementType()->isStructTy()) {
+            auto name = type->getPointerElementType()->getStructName();
+            if (classes->isPolymorphicType(name)) {
+                return symbols->hashClassName(name);
+            }
+        }
     }
-    return className;
+    return std::nullopt;
 }
 
-set<string> Analyzer::collectVirtualMethods(const set<string> &types, int index) const {
+set<string> Analyzer::collectVirtualMethods(const set<HashTy> &types, int index) const {
     set<string> targets;
-    for (const string &className : types) {
+    for (const HashTy className : types) {
         auto vTable = classes->getClass(className).getVTable();
         if (vTable.empty()) {
             // outs() << derived << " does not have VTable!\n";
@@ -72,15 +70,15 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
         // outs() << "cannot get virt call type" << '\n';
         return;
     }
-    const auto &hierarchy = classes->getHierarchyGraph();
-    set<string> derivedClasses = hierarchy.querySelfWithDerivedClasses(type.value());
+    set<HashTy> derivedClasses = classes->getSelfAndDerivedClasses(type.value());
 
     set<string> CHA = collectVirtualMethods(derivedClasses, index.value());
 
     const Value *obj = callInst->getOperand(0);
-    FunctionObjectFlow flow(classes.get(), functionRetTypes);
+    FunctionObjectFlow flow(classes.get(), symbols.get(), functionRetTypes);
     flow.analyzeFunction(callInst->getParent()->getParent());
     set<string> OFA = collectVirtualMethods(flow.traverseBack(obj), index.value());
+    if (OFA.empty()) OFA = CHA;
 
     if (CHA.empty()) {
         outs() << "No target found when calling \"" << type.value() << "\" at vtable index "
@@ -88,8 +86,6 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
                << *callInst << '\n';
     } else if (CHA.size() == 1) {
         ++totalTrivialCallSites;
-        totalCHATargets += CHA.size();
-        totalOFATargets += OFA.size();
     } else {
         ++totalNonTrivialCallSites;
         totalCHATargets += CHA.size();
@@ -166,12 +162,12 @@ void Analyzer::analyze(const vector<string> &files) {
 
     for (const auto &[name, f] : functions) {
         if (classes->isPolymorphicType(f->getReturnType())) {
-            FunctionObjectFlow flow(classes.get(), functionRetTypes);
+            FunctionObjectFlow flow(classes.get(), symbols.get(), functionRetTypes);
             flow.analyzeFunction(f);
-            set<string> OFA = flow.queryRetType();
-            auto ty = f->getReturnType()->getPointerElementType();
-            auto className = stripClassName(ty->getStructName().str());
-            set<string> CHA = classes->getHierarchyGraph().querySelfWithDerivedClasses(className);
+            set<HashTy> OFA = flow.queryRetType();
+            auto className = f->getReturnType()->getPointerElementType()->getStructName();
+            auto hash = symbols->hashClassName(className);
+            set<HashTy> CHA = classes->getSelfAndDerivedClasses(hash);
             if (!OFA.empty() && OFA.size() < CHA.size()) {
                 functionRetTypes.insert({name, OFA});
             }
@@ -190,6 +186,8 @@ void Analyzer::analyze(const vector<string> &files) {
     outs() << "Total virtual call sites: " << totalTrivialCallSites + totalNonTrivialCallSites
            << '\n';
     outs() << "Total non-trivial virtual call sites: " << totalNonTrivialCallSites << '\n';
-    outs() << "Total targets reported by class hierarchy analysis: " << totalCHATargets << '\n';
-    outs() << "Total targets reported by object flow analysis: " << totalOFATargets << '\n';
+    outs() << "Total targets of non-trivial call sites reported by class hierarchy analysis: "
+           << totalCHATargets << '\n';
+    outs() << "Total targets of non-trivial call sites reported by object flow analysis: "
+           << totalOFATargets << '\n';
 }

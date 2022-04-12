@@ -48,6 +48,18 @@ HashTy Symbols::hashClassName(llvm::StringRef symbol) {
     return hash;
 }
 
+bool Symbols::exist(llvm::StringRef symbol) const {
+    llvm::StringRef canonical = canonicalizeClassName(symbol);
+    HashTy hash = hashStr(canonical);
+    while (storage.count(hash) != 0) {
+        if (storage.at(hash) == canonical) {
+            return true;
+        }
+        ++hash;
+    }
+    return false;
+}
+
 std::string Symbols::getClassName(HashTy hash) const {
     auto it = storage.find(hash);
     if (it != storage.end()) {

@@ -92,7 +92,7 @@ void ConstraintSolverV1::solve() {
     }
 }
 
-static bool isSubsetOf(const std::set<std::string> &a, const std::set<std::string> &b) {
+static bool isSubsetOf(std::set<HashTy> a, const std::set<HashTy> &b) {
     for (const auto &elem : a) {
         if (b.count(elem) == 0) {
             return false;

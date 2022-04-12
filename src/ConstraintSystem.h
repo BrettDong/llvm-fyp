@@ -3,6 +3,7 @@
 #define CONSTRAINT_SYSTEM_H
 
 #include "Common.hpp"
+#include "Symbols.h"
 
 enum class ConstraintRelation : int { Subset, Superset };
 
@@ -10,7 +11,7 @@ class ConstraintSystem {
    private:
     using NodeTy = const llvm::Value *;
     using NodeID = int;
-    using Elem = std::string;
+    using Elem = HashTy;
 
     friend class ConstraintSolver;
     friend class ConstraintSolverV1;

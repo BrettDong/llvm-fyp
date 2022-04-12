@@ -17,11 +17,10 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
                                                   functionRetTypes[callee->getName().str()],
                                                   ConstraintRelation::Superset);
         } else {
-            auto nominalTy = inst->getType()->getPointerElementType();
-            auto className = stripClassName(nominalTy->getStructName().str());
+            auto nominalTy = inst->getType()->getPointerElementType()->getStructName();
             constraintSystem.addLiteralConstraint(
                 dyn_cast<Value>(inst),
-                classes->getHierarchyGraph().querySelfWithDerivedClasses(className),
+                classes->getSelfAndDerivedClasses(symbols->hashClassName(nominalTy)),
                 ConstraintRelation::Superset);
         }
     }
@@ -30,17 +29,11 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
 void FunctionObjectFlow::analyzeFunction(const Function *f) {
     function = f;
 
-    auto derivedClassesOf = [this](const Value *v) -> set<string> {
-        auto ty = v->getType()->getPointerElementType();
-        auto tyName = stripClassName(ty->getStructName().str());
-        return classes->getHierarchyGraph().querySelfWithDerivedClasses(tyName);
-    };
-
     auto constrainNominalType = [=](const Value *v) {
         if (classes->isPolymorphicType(v->getType())) {
-            auto set = derivedClassesOf(v);
-            // outs() << "constrain (" << v << ") [" << *v << "] to {" << list_out(set) << "}\n";
-            constraintSystem.addLiteralConstraint(v, set);
+            auto className = v->getType()->getPointerElementType()->getStructName();
+            auto hash = symbols->hashClassName(className);
+            constraintSystem.addLiteralConstraint(v, classes->getSelfAndDerivedClasses(hash));
         }
     };
 
@@ -119,7 +112,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
     constraintSystem.buildGraph();
 }
 
-set<string> FunctionObjectFlow::traverseBack(const Value *val) {
+set<HashTy> FunctionObjectFlow::traverseBack(const Value *val) {
     ConstraintSolverV2 solver(&constraintSystem);
     solver.solve();
     if (!solver.sanityCheck()) {
@@ -129,16 +122,16 @@ set<string> FunctionObjectFlow::traverseBack(const Value *val) {
     return solver.query(val);
 }
 
-set<string> FunctionObjectFlow::queryRetType() {
+set<HashTy> FunctionObjectFlow::queryRetType() {
     ConstraintSolverV2 solver(&constraintSystem);
     solver.solve();
     if (!solver.sanityCheck()) {
         string err = "Sanity check broken in function " + demangle(function->getName().str());
         throw std::runtime_error(err.c_str());
     }
-    set<string> ans;
+    set<HashTy> ans;
     for (const Value *r : ret) {
-        for (const string &target : solver.query(r)) {
+        for (const HashTy &target : solver.query(r)) {
             ans.insert(target);
         }
     }
