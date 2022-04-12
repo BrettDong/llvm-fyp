@@ -60,9 +60,38 @@ The argument can be one of
 * Path of a folder, in this case the program will search recursively for any file ending in `.bc` or `.o` and try to load them as LLVM IR bitcode modules
 * Path to a `.txt` file, whose content is a list of LLVM IR bitcode file paths, one in each line
 
+Examples:
 
 ```
 ./build/Analyzer ./sample-programs/class-hierarchy/foo.bc
 ./build/Analyzer ./sample-programs/class-hierarchy/
 ./build/Analyzer ./list.txt
+```
+
+## Compiling C++ programs to LLVM IR
+
+Because this static analysis tool relies on RTTI in global variable section in LLVM IR modules to reconstruct class inheritance relationships, **RTTI has to be enabled** when compiling test programs. This is important to be aware of when compiling C++ projects that turn off RTTI by default, such as Chromium.
+
+This static analysis tool recognizes virtual call sites by the following LLVM IR instructions pattern:
+
+```llvm
+  %20 = getelementptr inbounds double (%class.Shape*, double)*, double (%class.Shape*, double)** %19, i64 2
+  %21 = load double (%class.Shape*, double)*, double (%class.Shape*, double)** %20, align 8
+  %22 = call double %21(%class.Shape* nonnull align 8 dereferenceable(8) %17, double 1.000000e+00)
+```
+
+Compiler optimizations may alter such LLVM IR instructions pattern, so it is recommended to compile test programs with **optimization disabled** (`-O0`).
+
+One can instruct `clang++` compiler to output LLVM IR bitcode instead of binary object files by adding `-emit-llvm` compiler argument to `CXXFLAGS`. But in general, appending `-emit-llvm` to `CXXFLAGS` will mislead build systems (e.g. `./configure`, CMake) into believing that the host compiler is unable to properly compile a C/C++ program. An alternative method to compile C++ programs to LLVM IR is to enable LTO. This is less intrusive to build systems.
+
+As an example, for a CMake C++ project, one can compile it to LLVM IR with the following commands:
+
+```
+cmake -S build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=clang++ -D CMAKE_CXX_FLAGS=-flto
+cmake --build build -j 4
+```
+
+And analyze the C++ program with
+```
+Analyzer ./build/
 ```
