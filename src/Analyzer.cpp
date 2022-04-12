@@ -150,6 +150,7 @@ void Analyzer::analyze(const vector<string> &files) {
     for (const auto &[file, module] : modules) {
         // outs() << "Decoding functions from " << file << '\n';
         for (const Function &f : *module) {
+            if (f.getInstructionCount() == 0) continue;
             functions[f.getName().str()] = &f;
         }
     }
