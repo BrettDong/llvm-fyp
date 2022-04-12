@@ -11,19 +11,19 @@ using namespace llvm;
 void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
     if (classes->isPolymorphicType(inst->getType())) {
         auto callInst = dyn_cast<CallBase>(inst);
-        if (auto callee = callInst->getCalledFunction()) {
-            if (functionRetTypes.count(callee->getName().str()) > 0) {
-                constraintSystem.addLiteralConstraint(dyn_cast<Value>(inst),
-                                                      functionRetTypes[callee->getName().str()],
-                                                      ConstraintRelation::Superset);
-            }
+        auto callee = callInst->getCalledFunction();
+        if (callee != nullptr && functionRetTypes.count(callee->getName().str()) > 0) {
+            constraintSystem.addLiteralConstraint(dyn_cast<Value>(inst),
+                                                  functionRetTypes[callee->getName().str()],
+                                                  ConstraintRelation::Superset);
+        } else {
+            auto nominalTy = inst->getType()->getPointerElementType();
+            auto className = stripClassName(nominalTy->getStructName().str());
+            constraintSystem.addLiteralConstraint(
+                dyn_cast<Value>(inst),
+                classes->getHierarchyGraph().querySelfWithDerivedClasses(className),
+                ConstraintRelation::Superset);
         }
-        auto nominalTy = inst->getType()->getPointerElementType();
-        auto className = stripClassName(nominalTy->getStructName().str());
-        constraintSystem.addLiteralConstraint(
-            dyn_cast<Value>(inst),
-            classes->getHierarchyGraph().querySelfWithDerivedClasses(className),
-            ConstraintRelation::Superset);
     }
 }
 
