@@ -19,6 +19,7 @@ set(SOURCE
         src/ConstraintSystem.cpp
         src/FunctionObjectFlow.cpp
         src/Main.cpp
+        src/Symbols.cpp
         src/Utils.cpp
         )
 

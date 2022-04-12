@@ -17,7 +17,8 @@ class Analyzer {
 
     std::map<std::string, std::set<std::string>> functionRetTypes;
 
-    ClassAnalyzer classes;
+    std::unique_ptr<Symbols> symbols;
+    std::unique_ptr<ClassAnalyzer> classes;
 
     int totalCHATargets = 0;
     int totalOFATargets = 0;

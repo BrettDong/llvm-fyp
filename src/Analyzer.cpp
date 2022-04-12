@@ -29,7 +29,7 @@ std::optional<string> Analyzer::getVirtCallType(const CallBase *callInst) const 
     const StructType *ty = dyn_cast<StructType>(op0Ty->getPointerElementType());
     if (ty == nullptr) return std::nullopt;
     std::string className = stripClassName(ty->getName().str());
-    if (!classes.isClassExist(className)) {
+    if (!classes->isClassExist(className)) {
         // outs() << "Non-existing class name " << className << '\n';
         return std::nullopt;
     }
@@ -39,7 +39,7 @@ std::optional<string> Analyzer::getVirtCallType(const CallBase *callInst) const 
 set<string> Analyzer::collectVirtualMethods(const set<string> &types, int index) const {
     set<string> targets;
     for (const string &className : types) {
-        auto vTable = classes.getClass(className).getVTable();
+        auto vTable = classes->getClass(className).getVTable();
         if (vTable.empty()) {
             // outs() << derived << " does not have VTable!\n";
             continue;
@@ -72,13 +72,13 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
         // outs() << "cannot get virt call type" << '\n';
         return;
     }
-    const auto &hierarchy = classes.getHierarchyGraph();
+    const auto &hierarchy = classes->getHierarchyGraph();
     set<string> derivedClasses = hierarchy.querySelfWithDerivedClasses(type.value());
 
     set<string> CHA = collectVirtualMethods(derivedClasses, index.value());
 
     const Value *obj = callInst->getOperand(0);
-    FunctionObjectFlow flow(&classes, functionRetTypes);
+    FunctionObjectFlow flow(classes.get(), functionRetTypes);
     flow.analyzeFunction(callInst->getParent()->getParent());
     set<string> OFA = collectVirtualMethods(flow.traverseBack(obj), index.value());
 
@@ -117,7 +117,11 @@ void Analyzer::analyzeFunction(const Function &f) {
     }
 }
 
-Analyzer::Analyzer() { llvmContext = make_unique<LLVMContext>(); }
+Analyzer::Analyzer() {
+    llvmContext = make_unique<LLVMContext>();
+    symbols = std::make_unique<Symbols>();
+    classes = std::make_unique<ClassAnalyzer>(symbols.get());
+}
 
 static void printTime(const decltype(chrono::system_clock::now()) &start) {
     float seconds = chrono::duration<float>(chrono::system_clock::now() - start).count();
@@ -145,12 +149,12 @@ void Analyzer::analyze(const vector<string> &files) {
     outs() << "Analyzing class inheritance relationships" << '\n';
     for (const auto &[file, module] : modules) {
         // outs() << "Decoding class information from " << file << '\n';
-        classes.analyzeModule(module.get());
+        classes->analyzeModule(module.get());
     }
 
     printTime(start);
     outs() << "Building class hierarchy graph" << '\n';
-    classes.buildClassHierarchyGraph();
+    classes->buildClassHierarchyGraph();
 
     for (const auto &[file, module] : modules) {
         // outs() << "Decoding functions from " << file << '\n';
@@ -161,13 +165,13 @@ void Analyzer::analyze(const vector<string> &files) {
     }
 
     for (const auto &[name, f] : functions) {
-        if (classes.isPolymorphicType(f->getReturnType())) {
-            FunctionObjectFlow flow(&classes, functionRetTypes);
+        if (classes->isPolymorphicType(f->getReturnType())) {
+            FunctionObjectFlow flow(classes.get(), functionRetTypes);
             flow.analyzeFunction(f);
             set<string> OFA = flow.queryRetType();
             auto ty = f->getReturnType()->getPointerElementType();
             auto className = stripClassName(ty->getStructName().str());
-            set<string> CHA = classes.getHierarchyGraph().querySelfWithDerivedClasses(className);
+            set<string> CHA = classes->getHierarchyGraph().querySelfWithDerivedClasses(className);
             if (!OFA.empty() && OFA.size() < CHA.size()) {
                 functionRetTypes.insert({name, OFA});
             }

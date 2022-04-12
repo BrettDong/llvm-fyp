@@ -1,5 +1,6 @@
 #include "ClassAnalyzer.h"
 
+#include "Symbols.h"
 #include "Utils.h"
 
 using namespace llvm;
@@ -28,7 +29,7 @@ void ClassAnalyzer::analyzeModule(Module *module) {
             if (name.find("vtable for ") != std::string::npos) {
                 const std::string className = removePrefix(name, "vtable for ");
                 if (classes.count(className) == 0) {
-                    classes.insert({className, ClassInfo(className)});
+                    classes.insert({className, ClassInfo(className, symbols)});
                 }
                 classes.at(className).decodeVTable(variable.getInitializer());
             }
@@ -41,7 +42,7 @@ void ClassAnalyzer::analyzeModule(Module *module) {
             if (name.find("typeinfo for ") != std::string::npos) {
                 const std::string className = removePrefix(name, "typeinfo for ");
                 if (classes.count(className) == 0) {
-                    classes.insert({className, ClassInfo(className)});
+                    classes.insert({className, ClassInfo(className, symbols)});
                 }
                 classes.at(className).decodeRTTI(variable.getInitializer());
             }

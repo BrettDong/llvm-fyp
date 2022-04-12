@@ -3,15 +3,18 @@
 #define CLASS_INFO_H
 
 #include "Common.hpp"
+#include "Symbols.h"
 
 class ClassInfo {
    private:
     std::vector<std::string> vTable;
     std::set<std::string> parentClasses;
     std::string className;
+    Symbols *symbols;
 
    public:
-    explicit ClassInfo(const std::string &className) : className(className) {}
+    explicit ClassInfo(const std::string &className, Symbols *symbols)
+        : className(className), symbols(symbols) {}
 
     void decodeVTable(const llvm::Constant *initializer);
     void decodeRTTI(const llvm::Constant *initializer);

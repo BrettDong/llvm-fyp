@@ -5,13 +5,17 @@
 #include "ClassHierarchyGraph.h"
 #include "ClassInfo.h"
 #include "Common.hpp"
+#include "Symbols.h"
 
 class ClassAnalyzer {
    private:
     std::map<std::string, ClassInfo> classes;
     ClassHierarchyGraph hierarchy;
+    Symbols *symbols;
 
    public:
+    explicit ClassAnalyzer(Symbols *symbols) : symbols(symbols) {}
+
     [[nodiscard]] bool isPolymorphicType(const llvm::Type *ty) const;
     [[nodiscard]] bool isClassExist(const std::string &className) const;
     [[nodiscard]] const ClassInfo &getClass(const std::string &className) const;
