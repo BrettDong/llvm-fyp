@@ -13,6 +13,7 @@ set(SOURCE
         src/Analyzer.cpp
         src/ClassAnalyzer.cpp
         src/ClassInfo.cpp
+        src/ClassSet.cpp
         src/Common.hpp
         src/ConstraintSolver.cpp
         src/ConstraintSystem.cpp
