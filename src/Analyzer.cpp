@@ -151,14 +151,19 @@ void Analyzer::analyze(const vector<string> &files) {
     }
 
     printTime(start);
-    outs() << "Analyzing class inheritance relationships" << '\n';
+    outs() << "Decoding virtual tables and RTTI" << '\n';
     for (const auto &[file, module] : modules) {
         // outs() << "Decoding class information from " << file << '\n';
         classes->analyzeModule(module.get());
     }
 
     printTime(start);
-    outs() << "Building class hierarchy graph" << '\n';
+    outs() << "Clustering " << classes->getAllClasses().size() << " classes" << '\n';
+    classes->clusterClasses();
+
+    printTime(start);
+    outs() << "Building class hierarchy graph in " << classes->clusterCount() << " clusters"
+           << '\n';
     classes->buildClassHierarchyGraph();
 
     for (const auto &[file, module] : modules) {

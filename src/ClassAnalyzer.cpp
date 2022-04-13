@@ -18,8 +18,6 @@ bool ClassAnalyzer::isPolymorphicType(const llvm::Type *ty) const {
     }
 }
 
-const ClassInfo &ClassAnalyzer::getClass(HashTy classHash) const { return classes.at(classHash); }
-
 void ClassAnalyzer::analyzeModule(Module *module) {
     for (const GlobalVariable &variable : module->getGlobalList()) {
         if (variable.hasInitializer()) {
@@ -65,13 +63,15 @@ void ClassAnalyzer::clusterClasses() {
             continue;
         }
         const int currentCluster = nextClusterNo++;
+        int localIndex = 0;
         std::queue<HashTy> q;
         q.push(hash);
         while (!q.empty()) {
             HashTy cur = q.front();
             q.pop();
             classToCluster[cur] = currentCluster;
-            clusters[currentCluster].insert(cur);
+            classLocalIndex[cur] = localIndex++;
+            clusters[currentCluster].emplace_back(cur);
             for (const auto adj : edges[cur]) {
                 if (classToCluster.count(adj) == 0) {
                     q.push(adj);

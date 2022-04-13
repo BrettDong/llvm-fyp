@@ -10,7 +10,8 @@ class ClassAnalyzer {
    private:
     std::map<HashTy, ClassInfo> classes;
     std::map<HashTy, int> classToCluster;
-    std::map<int, std::set<HashTy>> clusters;
+    std::map<HashTy, int> classLocalIndex;
+    std::map<int, std::vector<HashTy>> clusters;
     std::map<HashTy, std::set<HashTy>> subClasses;
     Symbols *symbols;
 
@@ -19,7 +20,23 @@ class ClassAnalyzer {
 
     [[nodiscard]] bool isPolymorphicType(llvm::StringRef name) const;
     [[nodiscard]] bool isPolymorphicType(const llvm::Type *ty) const;
-    [[nodiscard]] const ClassInfo &getClass(HashTy classHash) const;
+
+    [[nodiscard]] size_t classCount() const { return classes.size(); }
+    [[nodiscard]] size_t clusterCount() const { return clusters.size(); }
+
+    [[nodiscard]] const ClassInfo &getClass(HashTy classHash) const {
+        return classes.at(classHash);
+    }
+
+    [[nodiscard]] int clusterOf(HashTy classHash) const { return classToCluster.at(classHash); }
+
+    [[nodiscard]] int clusterLocalIndexOf(HashTy classHash) const {
+        return classLocalIndex.at(classHash);
+    }
+
+    [[nodiscard]] const std::vector<HashTy> &getCluster(int cluster) const {
+        return clusters.at(cluster);
+    };
 
     void analyzeModule(llvm::Module *m);
 
