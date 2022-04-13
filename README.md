@@ -2,6 +2,8 @@
 
 ![GitHub Actions](https://github.com/BrettDong/llvm-fyp/actions/workflows/build.yml/badge.svg)
 
+![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue)
+
 ## Introduction
 
 This is a LLVM-based static analysis tool that resolves virtual call targets in C++ programs.
