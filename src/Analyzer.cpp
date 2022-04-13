@@ -170,11 +170,20 @@ void Analyzer::analyze(const vector<string> &files) {
     }
 
     for (const auto &[name, f] : functions) {
-        if (classes->isPolymorphicType(f->getReturnType())) {
+        Type *retType = nullptr;
+        if (f->getReturnType()->isVoidTy()) {
+            if (f->arg_size() > 1 && f->getArg(0)->getType()->isStructTy()) {
+                retType = f->getArg(0)->getType();
+            }
+        } else if (f->getReturnType()->isPointerTy() &&
+                   f->getReturnType()->getPointerElementType()->isStructTy()) {
+            retType = f->getReturnType();
+        }
+        if (retType && classes->isPolymorphicType(retType)) {
             FunctionObjectFlow flow(classes.get(), symbols.get(), functionRetTypes);
             flow.analyzeFunction(f);
             set<HashTy> OFA = flow.queryRetType();
-            auto className = f->getReturnType()->getPointerElementType()->getStructName();
+            auto className = retType->getPointerElementType()->getStructName();
             auto hash = symbols->hashClassName(className);
             set<HashTy> CHA = classes->getSelfAndDerivedClasses(hash);
             if (!OFA.empty() && OFA.size() < CHA.size()) {

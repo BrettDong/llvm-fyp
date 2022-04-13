@@ -9,19 +9,30 @@ using namespace std;
 using namespace llvm;
 
 void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
-    if (classes->isPolymorphicType(inst->getType())) {
-        auto callInst = dyn_cast<CallBase>(inst);
-        auto callee = callInst->getCalledFunction();
-        if (callee != nullptr && functionRetTypes.count(callee->getName().str()) > 0) {
+    auto callInst = dyn_cast<CallBase>(inst);
+    auto callee = callInst->getCalledFunction();
+    if (callee == nullptr) {
+        return;
+    }
+    if (functionRetTypes.count(callee->getName().str()) > 0) {
+        constraintSystem.addLiteralConstraint(dyn_cast<Value>(inst),
+                                              functionRetTypes[callee->getName().str()],
+                                              ConstraintRelation::Superset);
+    } else {
+        Type *nominalTy = nullptr;
+        if (callInst->getType()->isVoidTy()) {
+            if (callInst->hasStructRetAttr() && callInst->arg_size() > 1) {
+                nominalTy = callInst->getArgOperand(0)->getType();
+            }
+        } else if (callInst->getType()->isPointerTy() &&
+                   callInst->getType()->getPointerElementType()->isStructTy()) {
+            nominalTy = callInst->getType();
+        }
+        if (nominalTy && classes->isPolymorphicType(nominalTy)) {
+            auto hash = symbols->hashClassName(nominalTy->getPointerElementType()->getStructName());
             constraintSystem.addLiteralConstraint(dyn_cast<Value>(inst),
-                                                  functionRetTypes[callee->getName().str()],
+                                                  classes->getSelfAndDerivedClasses(hash),
                                                   ConstraintRelation::Superset);
-        } else {
-            auto nominalTy = inst->getType()->getPointerElementType()->getStructName();
-            constraintSystem.addLiteralConstraint(
-                dyn_cast<Value>(inst),
-                classes->getSelfAndDerivedClasses(symbols->hashClassName(nominalTy)),
-                ConstraintRelation::Superset);
         }
     }
 }
@@ -41,6 +52,11 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
         const Argument *arg = f->getArg(i);
         arguments.emplace_back(arg);
         constrainNominalType(arg);
+    }
+
+    if (f->hasStructRetAttr() && f->arg_size() > 1 &&
+        classes->isPolymorphicType(f->getArg(0)->getType())) {
+        ret.emplace_back(f->getArg(0));
     }
 
     for (auto &bb : *f) {
