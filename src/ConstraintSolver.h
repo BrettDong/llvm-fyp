@@ -2,45 +2,32 @@
 #ifndef CONSTRAINT_SOLVER_H
 #define CONSTRAINT_SOLVER_H
 
+#include "ClassAnalyzer.h"
 #include "Common.hpp"
 #include "ConstraintSystem.h"
 
 class ConstraintSolver {
-   protected:
+   private:
     using NodeTy = ConstraintSystem::NodeTy;
     using NodeID = ConstraintSystem::NodeID;
     using Elem = ConstraintSystem::Elem;
 
-   public:
-    ConstraintSolver() = delete;
-    explicit ConstraintSolver(const ConstraintSystem *system) {}
-    virtual ~ConstraintSolver() = default;
-    virtual void solve() = 0;
-    virtual bool sanityCheck() = 0;
-    virtual std::set<Elem> query(NodeTy v) = 0;
-};
-
-class ConstraintSolverV1 : public ConstraintSolver {
-   protected:
     ConstraintSystem *system;
+    ClassAnalyzer *classes;
     std::map<NodeID, std::set<Elem>> answers;
+
+    bool isSameCluster(std::set<Elem> a, std::set<Elem> b) const;
 
     bool intersectWith(std::set<Elem> &dst, const std::set<Elem> &src);
 
     bool unionWith(std::set<Elem> &dst, const std::set<Elem> &src);
 
    public:
-    explicit ConstraintSolverV1(ConstraintSystem *system)
-        : ConstraintSolver(system), system(system) {}
-    void solve() override;
-    bool sanityCheck() override;
-    std::set<Elem> query(NodeTy v) override;
-};
-
-class ConstraintSolverV2 : public ConstraintSolverV1 {
-   public:
-    explicit ConstraintSolverV2(ConstraintSystem *system) : ConstraintSolverV1(system) {}
-    void solve() override;
+    explicit ConstraintSolver(ConstraintSystem *system, ClassAnalyzer *classes)
+        : system(system), classes(classes) {}
+    void solve();
+    bool sanityCheck();
+    std::set<Elem> query(NodeTy v);
 };
 
 #endif  // CONSTRAINT_SOLVER_H

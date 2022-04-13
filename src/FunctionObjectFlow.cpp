@@ -129,7 +129,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
 }
 
 set<HashTy> FunctionObjectFlow::traverseBack(const Value *val) {
-    ConstraintSolverV2 solver(&constraintSystem);
+    ConstraintSolver solver(&constraintSystem, classes);
     solver.solve();
     if (!solver.sanityCheck()) {
         string err = "Sanity check broken in function " + demangle(function->getName().str());
@@ -139,7 +139,7 @@ set<HashTy> FunctionObjectFlow::traverseBack(const Value *val) {
 }
 
 set<HashTy> FunctionObjectFlow::queryRetType() {
-    ConstraintSolverV2 solver(&constraintSystem);
+    ConstraintSolver solver(&constraintSystem, classes);
     solver.solve();
     if (!solver.sanityCheck()) {
         string err = "Sanity check broken in function " + demangle(function->getName().str());

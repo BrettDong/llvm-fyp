@@ -1,6 +1,20 @@
 #include "ConstraintSolver.h"
 
-bool ConstraintSolverV1::intersectWith(std::set<Elem> &dst, const std::set<Elem> &src) {
+bool ConstraintSolver::isSameCluster(std::set<Elem> a, std::set<Elem> b) const {
+    std::set<int> cluster;
+    for (const Elem elem : a) {
+        cluster.insert(classes->clusterOf(elem));
+    }
+    for (const Elem elem : b) {
+        cluster.insert(classes->clusterOf(elem));
+    }
+    return cluster.size() <= 1;
+}
+
+bool ConstraintSolver::intersectWith(std::set<Elem> &dst, const std::set<Elem> &src) {
+    if (!isSameCluster(dst, src)) {
+        llvm::outs() << "not the same cluster\n";
+    }
     bool changed = false;
     std::set<Elem> toBeRemoved;
     for (const Elem &elem : dst) {
@@ -17,7 +31,10 @@ bool ConstraintSolverV1::intersectWith(std::set<Elem> &dst, const std::set<Elem>
     return changed;
 }
 
-bool ConstraintSolverV1::unionWith(std::set<Elem> &dst, const std::set<Elem> &src) {
+bool ConstraintSolver::unionWith(std::set<Elem> &dst, const std::set<Elem> &src) {
+    if (!isSameCluster(dst, src)) {
+        llvm::outs() << "not the same cluster\n";
+    }
     bool changed = false;
     for (const Elem &elem : src) {
         if (dst.count(elem) == 0) {
@@ -28,7 +45,7 @@ bool ConstraintSolverV1::unionWith(std::set<Elem> &dst, const std::set<Elem> &sr
     return changed;
 }
 
-void ConstraintSolverV1::solve() {
+void ConstraintSolver::solve() {
     std::queue<NodeID> q;
 
     for (const auto &[node, val] : system->constants) {
@@ -90,54 +107,7 @@ void ConstraintSolverV1::solve() {
             }
         }
     }
-}
 
-static bool isSubsetOf(std::set<HashTy> a, const std::set<HashTy> &b) {
-    for (const auto &elem : a) {
-        if (b.count(elem) == 0) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool ConstraintSolverV1::sanityCheck() {
-    std::queue<NodeID> q;
-    std::set<NodeID> visited;
-    for (const NodeID &node : system->nodes) {
-        if (system->backwardEdges[node].empty() && !system->forwardEdges[node].empty()) {
-            q.push(node);
-        }
-    }
-
-    while (!q.empty()) {
-        NodeID cur = q.front();
-        q.pop();
-        visited.insert(cur);
-
-        for (const NodeID &next : system->forwardEdges[cur]) {
-            if (!isSubsetOf(answers[cur], answers[next])) {
-                return false;
-            }
-            if (visited.count(next) == 0) {
-                q.push(next);
-            }
-        }
-    }
-
-    return true;
-}
-
-std::set<ConstraintSolverV1::Elem> ConstraintSolverV1::query(NodeTy v) {
-    if (system->idMap.count(v) == 0) {
-        return {};
-    }
-    return answers[system->idMap[v]];
-}
-
-void ConstraintSolverV2::solve() {
-    ConstraintSolverV1::solve();
-    std::queue<NodeID> q;
     for (const NodeID &node : system->nodes) {
         if (system->constants.count(node) > 0) {
             continue;
@@ -174,4 +144,55 @@ void ConstraintSolverV2::solve() {
             }
         }
     }
+}
+
+static bool isSubsetOf(std::set<HashTy> a, const std::set<HashTy> &b) {
+    for (const auto &elem : a) {
+        if (b.count(elem) == 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ConstraintSolver::sanityCheck() {
+    std::queue<NodeID> q;
+    std::set<NodeID> visited;
+    std::set<int> cluster;
+    for (const NodeID &node : system->nodes) {
+        if (system->backwardEdges[node].empty() && !system->forwardEdges[node].empty()) {
+            q.push(node);
+        }
+    }
+
+    while (!q.empty()) {
+        NodeID cur = q.front();
+        q.pop();
+        visited.insert(cur);
+        for (const auto elem : answers[cur]) {
+            cluster.insert(classes->clusterOf(elem));
+        }
+
+        for (const NodeID &next : system->forwardEdges[cur]) {
+            if (!isSubsetOf(answers[cur], answers[next])) {
+                return false;
+            }
+            if (visited.count(next) == 0) {
+                q.push(next);
+            }
+        }
+    }
+
+    if (cluster.size() != 1) {
+        // llvm::outs() << "cluster.size() != 1\n";
+    }
+
+    return true;
+}
+
+std::set<ConstraintSolver::Elem> ConstraintSolver::query(NodeTy v) {
+    if (system->idMap.count(v) == 0) {
+        return {};
+    }
+    return answers[system->idMap[v]];
 }
