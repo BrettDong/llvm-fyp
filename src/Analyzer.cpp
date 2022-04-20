@@ -152,25 +152,46 @@ static void printTime(const decltype(chrono::system_clock::now()) &start) {
 }
 
 void Analyzer::analyze(const vector<string> &files) {
-    auto start = chrono::system_clock::now();
-    printTime(start);
-    outs() << "Parsing LLVM IR from " << files.size() << " modules" << '\n';
-    for (const string &file : files) {
-        // outs() << "Reading bitcode file: " << file << "\n";
-        unique_ptr<Module> module = parseIRFile(file, err, *llvmContext);
-        if (!module) {
-            errs() << "Error loading bitcode file \"" << file << "\": " << err.getMessage() << "\n";
-            continue;
+    bool keepIR = false;
+
+    auto for_each_module = [&](const std::function<void(const std::string &, llvm::Module *)> &f) {
+        if (keepIR) {
+            for (const auto &[file, module] : modules) {
+                f(file, module.get());
+            }
+        } else {
+            for (const string &file : files) {
+                unique_ptr<Module> module = parseIRFile(file, err, *llvmContext);
+                if (!module) {
+                    errs() << "Error loading \"" << file << "\": " << err.getMessage() << "\n";
+                    continue;
+                }
+                f(file, module.get());
+            }
         }
-        modules[file] = std::move(module);
+    };
+
+    auto start = chrono::system_clock::now();
+    if (keepIR) {
+        printTime(start);
+        outs() << "Parsing LLVM IR from " << files.size() << " modules" << '\n';
+        for (const string &file : files) {
+            unique_ptr<Module> module = parseIRFile(file, err, *llvmContext);
+            if (!module) {
+                errs() << "Error loading bitcode file \"" << file << "\": " << err.getMessage()
+                       << "\n";
+                continue;
+            }
+            if (keepIR) {
+                modules[file] = std::move(module);
+            }
+        }
     }
 
     printTime(start);
     outs() << "Decoding virtual tables and RTTI" << '\n';
-    for (const auto &[file, module] : modules) {
-        // outs() << "Decoding class information from " << file << '\n';
-        classes->analyzeModule(module.get());
-    }
+    for_each_module(
+        [&](const std::string &file, llvm::Module *module) { classes->analyzeModule(module); });
 
     printTime(start);
     outs() << "Clustering " << classes->getAllClasses().size() << " classes" << '\n';
@@ -181,43 +202,48 @@ void Analyzer::analyze(const vector<string> &files) {
            << '\n';
     classes->buildClassHierarchyGraph();
 
-    for (const auto &[file, module] : modules) {
-        // outs() << "Decoding functions from " << file << '\n';
+    printTime(start);
+    outs() << "Analyzing function return types" << '\n';
+    for_each_module([&](const std::string &file, llvm::Module *module) {
         for (const Function &f : *module) {
             if (f.getInstructionCount() == 0) continue;
-            functions[f.getName().str()] = &f;
-        }
-    }
-
-    for (const auto &[name, f] : functions) {
-        Type *retType = nullptr;
-        if (f->getReturnType()->isVoidTy()) {
-            if (f->arg_size() > 1 && f->getArg(0)->getType()->isStructTy()) {
-                retType = f->getArg(0)->getType();
+            if (analyzedFunctions.count(f.getName().str()) > 0) continue;
+            analyzedFunctions.insert(f.getName().str());
+            Type *retType = nullptr;
+            if (f.getReturnType()->isVoidTy()) {
+                if (f.arg_size() > 1 && f.getArg(0)->getType()->isStructTy()) {
+                    retType = f.getArg(0)->getType();
+                }
+            } else if (f.getReturnType()->isPointerTy() &&
+                       f.getReturnType()->getPointerElementType()->isStructTy()) {
+                retType = f.getReturnType();
             }
-        } else if (f->getReturnType()->isPointerTy() &&
-                   f->getReturnType()->getPointerElementType()->isStructTy()) {
-            retType = f->getReturnType();
-        }
-        if (retType && classes->isPolymorphicType(retType)) {
-            FunctionObjectFlow flow(classes.get(), symbols.get(), functionRetTypes);
-            flow.analyzeFunction(f);
-            ClassSet OFA = flow.queryRetType();
-            auto className = retType->getPointerElementType()->getStructName();
-            auto hash = symbols->hashClassName(className);
-            ClassSet CHA = classes->getSelfAndDerivedClasses(hash);
-            if (!OFA.empty() && OFA.count() < CHA.count()) {
-                functionRetTypes.insert({name, OFA});
+            if (retType && classes->isPolymorphicType(retType)) {
+                FunctionObjectFlow flow(classes.get(), symbols.get(), functionRetTypes);
+                flow.analyzeFunction(&f);
+                ClassSet OFA = flow.queryRetType();
+                auto className = retType->getPointerElementType()->getStructName();
+                auto hash = symbols->hashClassName(className);
+                ClassSet CHA = classes->getSelfAndDerivedClasses(hash);
+                if (!OFA.empty() && OFA.count() < CHA.count()) {
+                    functionRetTypes.insert({f.getName().str(), OFA});
+                }
             }
         }
-    }
+    });
 
     printTime(start);
-    outs() << "Analyzing " << functions.size() << " functions" << '\n';
+    outs() << "Analyzing virtual calls in " << analyzedFunctions.size() << " functions" << '\n';
+    analyzedFunctions.clear();
 
-    for (const auto &it : functions) {
-        analyzeFunction(*it.second);
-    }
+    for_each_module([&](const std::string &file, llvm::Module *module) {
+        for (const Function &f : *module) {
+            if (f.getInstructionCount() == 0) continue;
+            if (analyzedFunctions.count(f.getName().str()) > 0) continue;
+            analyzedFunctions.insert(f.getName().str());
+            analyzeFunction(f);
+        }
+    });
 
     printTime(start);
     outs() << "Analysis completed" << '\n';

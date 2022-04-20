@@ -28,6 +28,7 @@ class Analyzer {
 
     std::map<std::string, std::unique_ptr<llvm::Module>> modules;
     std::map<std::string, const llvm::Function *> functions;
+    std::set<std::string> analyzedFunctions;
 
     std::map<std::string, ClassSet> functionRetTypes;
 
