@@ -16,6 +16,7 @@
 #ifndef CONSTRAINT_SYSTEM_H
 #define CONSTRAINT_SYSTEM_H
 
+#include "ClassSet.h"
 #include "Common.hpp"
 #include "Symbols.h"
 
@@ -40,7 +41,7 @@ class ConstraintSystem {
     };
 
     std::vector<Constraint> constraints;
-    std::map<NodeID, std::set<Elem>> constants;
+    std::map<NodeID, ClassSet> constants;
     std::set<NodeID> nodes;
     std::map<NodeTy, NodeID> idMap;
     NodeID nextId = 0;
@@ -58,7 +59,7 @@ class ConstraintSystem {
    public:
     void addConstraint(NodeTy a, NodeTy b, ConstraintRelation c = ConstraintRelation::Subset);
 
-    void addLiteralConstraint(NodeTy a, const std::set<Elem> &literal,
+    void addLiteralConstraint(NodeTy a, const ClassSet &literal,
                               ConstraintRelation c = ConstraintRelation::Subset);
 
     void buildGraph();

@@ -16,8 +16,10 @@
 #ifndef CLASS_SET_H
 #define CLASS_SET_H
 
-#include "ClassAnalyzer.h"
 #include "Common.hpp"
+#include "Symbols.h"
+
+class ClassAnalyzer;
 
 class ClassSet {
    private:
@@ -25,19 +27,42 @@ class ClassSet {
     static constexpr int ElemBits = sizeof(ElemTy) * 8;
     static constexpr ElemTy identity = static_cast<ElemTy>(1);
 
-    ClassAnalyzer *classes;
-    const int cluster;
+    static constexpr int nullCluster = -1;
+
+    const ClassAnalyzer *classes;
+    int cluster;
     int bits;
+    int elems;
     llvm::SmallVector<ElemTy> storage;
 
-   public:
-    explicit ClassSet(ClassAnalyzer *classes, int cluster);
+    void setClusterId(int clusterId);
 
-    bool getBit(int i) const;
+   public:
+    explicit ClassSet(const ClassAnalyzer *classes);
+
+    explicit ClassSet(const ClassAnalyzer *classes, int cluster);
+
+    ClassSet(const ClassSet &rhs) = default;
+
+    [[nodiscard]] bool getBit(int i) const;
 
     void setBit(int i, bool v);
 
-    std::set<HashTy> toClasses() const;
+    void insert(HashTy classHash);
+
+    [[nodiscard]] bool empty() const;
+
+    [[nodiscard]] int count() const;
+
+    [[nodiscard]] std::set<HashTy> toClasses() const;
+
+    // intersect this to rhs, return true if value is changed
+    bool intersectWith(const ClassSet &rhs);
+
+    // union this to rhs, return true if value is changed
+    bool unionWith(const ClassSet &rhs);
+
+    [[nodiscard]] bool isSubSetOf(const ClassSet &rhs) const;
 };
 
 #endif  // CLASS_SET_H

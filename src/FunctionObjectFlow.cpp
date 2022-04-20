@@ -30,7 +30,7 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
     }
     if (functionRetTypes.count(callee->getName().str()) > 0) {
         constraintSystem.addLiteralConstraint(dyn_cast<Value>(inst),
-                                              functionRetTypes[callee->getName().str()],
+                                              functionRetTypes.at(callee->getName().str()),
                                               ConstraintRelation::Superset);
     } else {
         Type *nominalTy = nullptr;
@@ -142,28 +142,18 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
     constraintSystem.buildGraph();
 }
 
-set<HashTy> FunctionObjectFlow::traverseBack(const Value *val) {
+ClassSet FunctionObjectFlow::traverseBack(const Value *val) {
     ConstraintSolver solver(&constraintSystem, classes);
     solver.solve();
-    if (!solver.sanityCheck()) {
-        string err = "Sanity check broken in function " + demangle(function->getName().str());
-        throw std::runtime_error(err.c_str());
-    }
     return solver.query(val);
 }
 
-set<HashTy> FunctionObjectFlow::queryRetType() {
+ClassSet FunctionObjectFlow::queryRetType() {
     ConstraintSolver solver(&constraintSystem, classes);
     solver.solve();
-    if (!solver.sanityCheck()) {
-        string err = "Sanity check broken in function " + demangle(function->getName().str());
-        throw std::runtime_error(err.c_str());
-    }
-    set<HashTy> ans;
+    ClassSet ans(classes);
     for (const Value *r : ret) {
-        for (const HashTy &target : solver.query(r)) {
-            ans.insert(target);
-        }
+        ans.unionWith(solver.query(r));
     }
     return ans;
 }

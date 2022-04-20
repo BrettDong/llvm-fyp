@@ -16,6 +16,7 @@
 
 #include <llvm/IRReader/IRReader.h>
 
+#include "ClassSet.h"
 #include "FunctionObjectFlow.h"
 #include "Utils.h"
 
@@ -93,20 +94,20 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
         // outs() << "cannot get virt call type" << '\n';
         return;
     }
-    set<HashTy> derivedClasses = classes->getSelfAndDerivedClasses(type.value());
+    set<HashTy> derivedClasses = classes->getSelfAndDerivedClasses(type.value()).toClasses();
 
     set<string> CHA = collectVirtualMethods(derivedClasses, index.value());
 
     const Value *obj = callInst->getOperand(0);
     FunctionObjectFlow flow(classes.get(), symbols.get(), functionRetTypes);
     flow.analyzeFunction(callInst->getParent()->getParent());
-    set<string> OFA = collectVirtualMethods(flow.traverseBack(obj), index.value());
+    set<string> OFA = collectVirtualMethods(flow.traverseBack(obj).toClasses(), index.value());
     if (OFA.empty()) OFA = CHA;
 
     if (CHA.empty()) {
-        outs() << "No target found when calling \"" << type.value() << "\" at vtable index "
-               << index.value() << " in " << (callInst->getFunction()->getName().str()) << " : "
-               << *callInst << '\n';
+        outs() << "No target found when calling \"" << symbols->getClassName(type.value())
+               << "\" at vtable index " << index.value() << " in "
+               << (callInst->getFunction()->getName().str()) << " : " << *callInst << '\n';
     } else if (CHA.size() == 1) {
         ++totalTrivialCallSites;
     } else {
@@ -201,11 +202,11 @@ void Analyzer::analyze(const vector<string> &files) {
         if (retType && classes->isPolymorphicType(retType)) {
             FunctionObjectFlow flow(classes.get(), symbols.get(), functionRetTypes);
             flow.analyzeFunction(f);
-            set<HashTy> OFA = flow.queryRetType();
+            ClassSet OFA = flow.queryRetType();
             auto className = retType->getPointerElementType()->getStructName();
             auto hash = symbols->hashClassName(className);
-            set<HashTy> CHA = classes->getSelfAndDerivedClasses(hash);
-            if (!OFA.empty() && OFA.size() < CHA.size()) {
+            ClassSet CHA = classes->getSelfAndDerivedClasses(hash);
+            if (!OFA.empty() && OFA.count() < CHA.count()) {
                 functionRetTypes.insert({name, OFA});
             }
         }

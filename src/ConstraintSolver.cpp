@@ -14,56 +14,17 @@
 
 #include "ConstraintSolver.h"
 
-bool ConstraintSolver::isSameCluster(std::set<Elem> a, std::set<Elem> b) const {
-    std::set<int> cluster;
-    for (const Elem elem : a) {
-        cluster.insert(classes->clusterOf(elem));
-    }
-    for (const Elem elem : b) {
-        cluster.insert(classes->clusterOf(elem));
-    }
-    return cluster.size() <= 1;
+bool ConstraintSolver::intersectWith(ClassSet &dst, const ClassSet &src) {
+    return dst.intersectWith(src);
 }
 
-bool ConstraintSolver::intersectWith(std::set<Elem> &dst, const std::set<Elem> &src) {
-    if (!isSameCluster(dst, src)) {
-        llvm::outs() << "not the same cluster\n";
-    }
-    bool changed = false;
-    std::set<Elem> toBeRemoved;
-    for (const Elem &elem : dst) {
-        if (src.count(elem) == 0) {
-            toBeRemoved.insert(elem);
-        }
-    }
-    if (!toBeRemoved.empty()) {
-        for (const Elem &elem : toBeRemoved) {
-            dst.erase(elem);
-        }
-        changed = true;
-    }
-    return changed;
-}
-
-bool ConstraintSolver::unionWith(std::set<Elem> &dst, const std::set<Elem> &src) {
-    if (!isSameCluster(dst, src)) {
-        llvm::outs() << "not the same cluster\n";
-    }
-    bool changed = false;
-    for (const Elem &elem : src) {
-        if (dst.count(elem) == 0) {
-            dst.insert(elem);
-            changed = true;
-        }
-    }
-    return changed;
-}
+bool ConstraintSolver::unionWith(ClassSet &dst, const ClassSet &src) { return dst.unionWith(src); }
 
 void ConstraintSolver::solve() {
     std::queue<NodeID> q;
 
     for (const auto &[node, val] : system->constants) {
-        answers[node] = val;
+        answers.insert({node, val});
     }
 
     for (const auto &[node, val] : system->constants) {
@@ -81,18 +42,26 @@ void ConstraintSolver::solve() {
         NodeID cur = q.front();
         q.pop();
 
+        if (answers.count(cur) == 0) {
+            answers.insert({cur, ClassSet(classes)});
+        }
+
         for (NodeID left : system->backwardEdges[cur]) {
             if (system->constants.count(left) > 0) {
                 continue;
             }
 
+            if (answers.count(left) == 0) {
+                answers.insert({left, ClassSet(classes)});
+            }
+
             bool changed = false;
 
             if (system->backwardVisited[left]) {
-                changed = intersectWith(answers[left], answers[cur]);
+                changed = intersectWith(answers.at(left), answers.at(cur));
             } else {
-                for (const Elem &elem : answers[cur]) {
-                    answers[left].insert(elem);
+                for (const Elem &elem : answers.at(cur).toClasses()) {
+                    answers.at(left).insert(elem);
                 }
                 changed = true;
                 system->backwardVisited[left] = true;
@@ -111,7 +80,11 @@ void ConstraintSolver::solve() {
                 continue;
             }
 
-            bool changed = unionWith(answers[right], answers[cur]);
+            if (answers.count(right) == 0) {
+                answers.insert({right, ClassSet(classes)});
+            }
+
+            bool changed = unionWith(answers.at(right), answers.at(cur));
 
             if (changed) {
                 // outs() << "Node[" << cur << "] updated Node[" << right << "] to "
@@ -126,14 +99,20 @@ void ConstraintSolver::solve() {
         if (system->constants.count(node) > 0) {
             continue;
         }
-        std::set<Elem> unionOf;
+        if (system->backwardEdges[node].empty()) {
+            continue;
+        }
+        ClassSet unionOf(classes);
         for (const NodeID &prev : system->backwardEdges[node]) {
-            unionWith(unionOf, answers[prev]);
+            if (answers.count(prev) == 0) {
+                answers.insert({prev, ClassSet(classes)});
+            }
+            unionWith(unionOf, answers.at(prev));
         }
         if (unionOf.empty()) {
             continue;
         }
-        bool changed = intersectWith(answers[node], unionOf);
+        bool changed = intersectWith(answers.at(node), unionOf);
         if (changed) {
             for (const NodeID &next : system->forwardEdges[node]) {
                 q.push(next);
@@ -144,14 +123,17 @@ void ConstraintSolver::solve() {
     while (!q.empty()) {
         NodeID cur = q.front();
         q.pop();
-        std::set<Elem> unionOf;
+        if (system->backwardEdges[cur].empty()) {
+            continue;
+        }
+        ClassSet unionOf(classes);
         for (const NodeID &prev : system->backwardEdges[cur]) {
-            unionWith(unionOf, answers[prev]);
+            unionWith(unionOf, answers.at(prev));
         }
         if (unionOf.empty()) {
             continue;
         }
-        bool changed = intersectWith(answers[cur], unionOf);
+        bool changed = intersectWith(answers.at(cur), unionOf);
         if (changed) {
             for (const NodeID &next : system->forwardEdges[cur]) {
                 q.push(next);
@@ -172,7 +154,6 @@ static bool isSubsetOf(std::set<HashTy> a, const std::set<HashTy> &b) {
 bool ConstraintSolver::sanityCheck() {
     std::queue<NodeID> q;
     std::set<NodeID> visited;
-    std::set<int> cluster;
     for (const NodeID &node : system->nodes) {
         if (system->backwardEdges[node].empty() && !system->forwardEdges[node].empty()) {
             q.push(node);
@@ -183,12 +164,10 @@ bool ConstraintSolver::sanityCheck() {
         NodeID cur = q.front();
         q.pop();
         visited.insert(cur);
-        for (const auto elem : answers[cur]) {
-            cluster.insert(classes->clusterOf(elem));
-        }
 
         for (const NodeID &next : system->forwardEdges[cur]) {
-            if (!isSubsetOf(answers[cur], answers[next])) {
+            if (answers.count(cur) > 0 && answers.count(next) > 0 &&
+                !answers.at(cur).isSubSetOf(answers.at(next))) {
                 return false;
             }
             if (visited.count(next) == 0) {
@@ -197,16 +176,12 @@ bool ConstraintSolver::sanityCheck() {
         }
     }
 
-    if (cluster.size() != 1) {
-        // llvm::outs() << "cluster.size() != 1\n";
-    }
-
     return true;
 }
 
-std::set<ConstraintSolver::Elem> ConstraintSolver::query(NodeTy v) {
+ClassSet ConstraintSolver::query(NodeTy v) {
     if (system->idMap.count(v) == 0) {
-        return {};
+        return ClassSet(classes);
     }
-    return answers[system->idMap[v]];
+    return answers.at(system->idMap[v]);
 }

@@ -38,7 +38,7 @@ void ConstraintSystem::addConstraint(NodeTy a, NodeTy b, ConstraintRelation c) {
     // printConstraint(constraints.back());
 }
 
-void ConstraintSystem::addLiteralConstraint(NodeTy a, const std::set<Elem> &literal,
+void ConstraintSystem::addLiteralConstraint(NodeTy a, const ClassSet &literal,
                                             ConstraintRelation c) {
     NodeID idA = 0;
     if (idMap.count(a) == 0) {
@@ -89,7 +89,7 @@ std::string ConstraintSystem::visualizeConstraintOperand(const ConstraintSystem:
     if (origin.has_value()) {
         return getInstSeqNum(origin.value());
     } else {
-        return "{" + list_out(constants[id]) + "}";
+        return "{" + list_out(constants.at(id).toClasses()) + "}";
     }
 }
 

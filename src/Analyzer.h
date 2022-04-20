@@ -29,7 +29,7 @@ class Analyzer {
     std::map<std::string, std::unique_ptr<llvm::Module>> modules;
     std::map<std::string, const llvm::Function *> functions;
 
-    std::map<std::string, std::set<HashTy>> functionRetTypes;
+    std::map<std::string, ClassSet> functionRetTypes;
 
     std::unique_ptr<Symbols> symbols;
     std::unique_ptr<ClassAnalyzer> classes;

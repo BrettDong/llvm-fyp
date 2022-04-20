@@ -28,20 +28,20 @@ class ConstraintSolver {
 
     ConstraintSystem *system;
     ClassAnalyzer *classes;
-    std::map<NodeID, std::set<Elem>> answers;
+    std::map<NodeID, ClassSet> answers;
 
     bool isSameCluster(std::set<Elem> a, std::set<Elem> b) const;
 
-    bool intersectWith(std::set<Elem> &dst, const std::set<Elem> &src);
+    bool intersectWith(ClassSet &dst, const ClassSet &src);
 
-    bool unionWith(std::set<Elem> &dst, const std::set<Elem> &src);
+    bool unionWith(ClassSet &dst, const ClassSet &src);
 
    public:
     explicit ConstraintSolver(ConstraintSystem *system, ClassAnalyzer *classes)
         : system(system), classes(classes) {}
     void solve();
     bool sanityCheck();
-    std::set<Elem> query(NodeTy v);
+    ClassSet query(NodeTy v);
 };
 
 #endif  // CONSTRAINT_SOLVER_H

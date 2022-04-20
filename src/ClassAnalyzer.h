@@ -17,6 +17,7 @@
 #define CLASS_ANALYZER_H
 
 #include "ClassInfo.h"
+#include "ClassSet.h"
 #include "Common.hpp"
 #include "Symbols.h"
 
@@ -58,7 +59,7 @@ class ClassAnalyzer {
 
     void buildClassHierarchyGraph();
 
-    std::set<HashTy> getSelfAndDerivedClasses(HashTy classHash) const;
+    [[nodiscard]] ClassSet getSelfAndDerivedClasses(HashTy classHash) const;
 
     [[nodiscard]] const std::map<HashTy, ClassInfo> &getAllClasses() const { return classes; }
 };

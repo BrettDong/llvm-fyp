@@ -14,6 +14,7 @@
 
 #include "ClassAnalyzer.h"
 
+#include "ClassSet.h"
 #include "Symbols.h"
 #include "Utils.h"
 
@@ -103,17 +104,21 @@ void ClassAnalyzer::buildClassHierarchyGraph() {
     }
 }
 
-std::set<HashTy> ClassAnalyzer::getSelfAndDerivedClasses(HashTy classHash) const {
-    std::set<HashTy> result{classHash};
-    if (subClasses.count(classHash) == 0) {
-        return result;
-    }
-    for (const HashTy subClass : subClasses.at(classHash)) {
-        result.insert(subClass);
-        std::set<HashTy> query = getSelfAndDerivedClasses(subClass);
-        for (const HashTy subSubClass : query) {
-            result.insert(subSubClass);
+ClassSet ClassAnalyzer::getSelfAndDerivedClasses(HashTy classHash) const {
+    ClassSet result(this, classToCluster.at(classHash));
+    std::queue<HashTy> q;
+    q.push(classHash);
+
+    while (!q.empty()) {
+        HashTy cur = q.front();
+        q.pop();
+        result.insert(cur);
+        if (subClasses.count(cur) > 0) {
+            for (const HashTy subClass : subClasses.at(cur)) {
+                q.push(subClass);
+            }
         }
     }
+
     return result;
 }

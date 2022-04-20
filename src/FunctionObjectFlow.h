@@ -17,6 +17,7 @@
 #define FUNCTION_OBJECT_FLOW_H
 
 #include "ClassAnalyzer.h"
+#include "ClassSet.h"
 #include "Common.hpp"
 #include "ConstraintSystem.h"
 
@@ -28,7 +29,7 @@ class FunctionObjectFlow {
 
     ClassAnalyzer *classes;
     Symbols *symbols;
-    std::map<std::string, std::set<HashTy>> &functionRetTypes;
+    std::map<std::string, ClassSet> &functionRetTypes;
     const llvm::Function *function = nullptr;
     std::vector<const llvm::Value *> ret;
 
@@ -36,14 +37,14 @@ class FunctionObjectFlow {
 
    public:
     explicit FunctionObjectFlow(ClassAnalyzer *classes, Symbols *symbols,
-                                std::map<std::string, std::set<HashTy>> &functionRetTypes)
+                                std::map<std::string, ClassSet> &functionRetTypes)
         : classes(classes), symbols(symbols), functionRetTypes(functionRetTypes) {}
 
     void analyzeFunction(const llvm::Function *f);
 
-    std::set<HashTy> traverseBack(const llvm::Value *val);
+    ClassSet traverseBack(const llvm::Value *val);
 
-    std::set<HashTy> queryRetType();
+    ClassSet queryRetType();
 };
 
 #endif  // FUNCTION_OBJECT_FLOW_H
