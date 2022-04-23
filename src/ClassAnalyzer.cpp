@@ -99,12 +99,19 @@ void ClassAnalyzer::clusterClasses() {
 void ClassAnalyzer::buildClassHierarchyGraph() {
     for (const auto &[hash, info] : classes) {
         for (const HashTy parentHash : info.getParentClasses()) {
-            subClasses[parentHash].insert(hash);
+            if (subClasses.count(parentHash) == 0) {
+                subClasses.insert({parentHash, ClassSet(this, clusterOf(parentHash))});
+            }
+            subClasses.at(parentHash).insert(hash);
         }
     }
 }
 
-ClassSet ClassAnalyzer::getSelfAndDerivedClasses(HashTy classHash) const {
+ClassSet ClassAnalyzer::getSelfAndDerivedClasses(HashTy classHash) {
+    if (hierarchyCache.count(classHash) > 0) {
+        return hierarchyCache.at(classHash);
+    }
+
     ClassSet result(this, classToCluster.at(classHash));
     std::queue<HashTy> q;
     q.push(classHash);
@@ -114,11 +121,12 @@ ClassSet ClassAnalyzer::getSelfAndDerivedClasses(HashTy classHash) const {
         q.pop();
         result.insert(cur);
         if (subClasses.count(cur) > 0) {
-            for (const HashTy subClass : subClasses.at(cur)) {
+            for (const HashTy subClass : subClasses.at(cur).toClasses()) {
                 q.push(subClass);
             }
         }
     }
 
+    hierarchyCache.insert({classHash, result});
     return result;
 }

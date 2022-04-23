@@ -27,7 +27,8 @@ class ClassAnalyzer {
     std::map<HashTy, int> classToCluster;
     std::map<HashTy, int> classLocalIndex;
     std::map<int, std::vector<HashTy>> clusters;
-    std::map<HashTy, std::set<HashTy>> subClasses;
+    std::map<HashTy, ClassSet> subClasses;
+    std::map<HashTy, ClassSet> hierarchyCache;
     Symbols *symbols;
 
    public:
@@ -59,7 +60,7 @@ class ClassAnalyzer {
 
     void buildClassHierarchyGraph();
 
-    [[nodiscard]] ClassSet getSelfAndDerivedClasses(HashTy classHash) const;
+    [[nodiscard]] ClassSet getSelfAndDerivedClasses(HashTy classHash);
 
     [[nodiscard]] const std::map<HashTy, ClassInfo> &getAllClasses() const { return classes; }
 };
