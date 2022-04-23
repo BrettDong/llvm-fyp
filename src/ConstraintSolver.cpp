@@ -183,5 +183,10 @@ ClassSet ConstraintSolver::query(NodeTy v) {
     if (system->idMap.count(v) == 0) {
         return ClassSet(classes);
     }
+    if (answers.count(system->idMap[v]) == 0) {
+        llvm::outs() << "ERROR: node does not have an answer: " << *v << '\n';
+        llvm::outs().flush();
+        return ClassSet(classes);
+    }
     return answers.at(system->idMap[v]);
 }
