@@ -152,7 +152,7 @@ static void printTime(const decltype(chrono::system_clock::now()) &start) {
 }
 
 void Analyzer::analyze(vector<string> files) {
-    bool keepIR = false;
+    bool keepIR = files.size() < 1000;
 
     auto for_each_module = [&](const std::function<void(const std::string &, llvm::Module *)> &f) {
         if (keepIR) {
