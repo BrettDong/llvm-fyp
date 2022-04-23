@@ -48,6 +48,6 @@ int main(int argc, char **argv) {
 
     std::sort(bitcodeFiles.begin(), bitcodeFiles.end());
     Analyzer analyzer;
-    analyzer.analyze(bitcodeFiles);
+    analyzer.analyze(std::move(bitcodeFiles));
     return 0;
 }

@@ -51,7 +51,7 @@ class Analyzer {
    public:
     Analyzer();
 
-    void analyze(const std::vector<std::string> &files);
+    void analyze(std::vector<std::string> files);
 };
 
 #endif

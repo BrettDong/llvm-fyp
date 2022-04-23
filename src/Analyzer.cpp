@@ -151,7 +151,7 @@ static void printTime(const decltype(chrono::system_clock::now()) &start) {
     outs() << "[" << oss.str() << "] ";
 }
 
-void Analyzer::analyze(const vector<string> &files) {
+void Analyzer::analyze(vector<string> files) {
     bool keepIR = false;
 
     auto for_each_module = [&](const std::function<void(const std::string &, llvm::Module *)> &f) {
@@ -160,13 +160,16 @@ void Analyzer::analyze(const vector<string> &files) {
                 f(file, module.get());
             }
         } else {
-            for (const string &file : files) {
+            for (auto it = files.begin(); it != files.end();) {
+                const auto &file = *it;
                 unique_ptr<Module> module = parseIRFile(file, err, *llvmContext);
                 if (!module) {
                     errs() << "Error loading \"" << file << "\": " << err.getMessage() << "\n";
-                    continue;
+                    it = files.erase(it);
+                } else {
+                    f(file, module.get());
+                    ++it;
                 }
-                f(file, module.get());
             }
         }
     };
@@ -175,15 +178,16 @@ void Analyzer::analyze(const vector<string> &files) {
     if (keepIR) {
         printTime(start);
         outs() << "Parsing LLVM IR from " << files.size() << " modules" << '\n';
-        for (const string &file : files) {
+        for (auto it = files.begin(); it != files.end();) {
+            const auto &file = *it;
             unique_ptr<Module> module = parseIRFile(file, err, *llvmContext);
             if (!module) {
                 errs() << "Error loading bitcode file \"" << file << "\": " << err.getMessage()
                        << "\n";
-                continue;
-            }
-            if (keepIR) {
+                it = files.erase(it);
+            } else {
                 modules[file] = std::move(module);
+                ++it;
             }
         }
     }
