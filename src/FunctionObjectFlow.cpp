@@ -78,8 +78,24 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
             // outs() << "Processing " << inst << '\n';
             switch (inst.getOpcode()) {
                 case Instruction::Alloca: {
-                    constrainNominalType(&inst);
-                    // outs() << "ALLOCA " << &inst << '\n';
+                    if (inst.getType()->isPointerTy()) {
+                        auto elemTy = inst.getType()->getPointerElementType();
+                        if (elemTy->isStructTy()) {
+                            auto className = elemTy->getStructName();
+                            if (classes->isPolymorphicType(className)) {
+                                auto hash = symbols->hashClassName(className);
+                                auto classSet = classes->getSelfAndDerivedClasses(hash);
+                                constraintSystem.addLiteralConstraint(&inst, classSet);
+                            }
+                        }
+                    } else if (inst.getType()->isStructTy()) {
+                        auto className = inst.getType()->getStructName();
+                        if (classes->isPolymorphicType(className)) {
+                            auto hash = symbols->hashClassName(className);
+                            auto classSet = classes->getSelfAndDerivedClasses(hash);
+                            constraintSystem.addLiteralConstraint(&inst, classSet);
+                        }
+                    }
                     break;
                 }
                 case Instruction::Load: {
