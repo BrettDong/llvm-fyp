@@ -1,4 +1,4 @@
-name: Build
+name: Test
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
     paths:
       - 'CMakeLists.txt'
       - 'src/**'
+      - 'tests/**'
 
 jobs:
   build:
@@ -18,10 +19,12 @@ jobs:
         run: |
           sudo apt update
           sudo apt install llvm-12
-      - name: Build
+      - name: Configure
         run: |
           cmake -S . -B build -D CMAKE_BUILD_TYPE=Release -D SANITIZERS=ON -D LLVM_DIR=/usr/lib/llvm-12/cmake
-          cmake --build build -j2
-      - name: Run
+      - name: Build
         run: |
-          ./build/Analyzer ./sample-programs/class-hierarchy
+          cmake --build build --target AnalyzerTest -j2
+      - name: Run tests
+        run: |
+          cd build && ctest

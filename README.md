@@ -1,6 +1,6 @@
 # Course work of COMP4801 Final Year Project
 
-![GitHub Actions](https://github.com/BrettDong/llvm-fyp/actions/workflows/build.yml/badge.svg)
+![GitHub Actions](https://github.com/BrettDong/llvm-fyp/actions/workflows/test.yml/badge.svg)
 ![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue)
 
 ## Introduction
