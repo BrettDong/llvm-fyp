@@ -18,25 +18,26 @@ set(SOURCE
         src/ConstraintSolver.cpp
         src/ConstraintSystem.cpp
         src/FunctionObjectFlow.cpp
-        src/Main.cpp
         src/Symbols.cpp
         src/Utils.cpp
         )
 
-add_executable(Analyzer ${SOURCE})
-target_include_directories(Analyzer PRIVATE src)
-target_compile_options(Analyzer PRIVATE -fno-rtti)
-target_compile_options(Analyzer PRIVATE -fPIC)
-target_compile_options(Analyzer PRIVATE -Werror)
-if (SANITIZERS)
-    target_compile_options(Analyzer PRIVATE -fsanitize=address,undefined)
-    target_link_options(Analyzer PRIVATE -fsanitize=address,undefined)
-endif ()
-set_target_properties(Analyzer PROPERTIES CXX_STANDARD 17)
-set_target_properties(Analyzer PROPERTIES CXX_STANDARD_REQUIRED ON)
-target_precompile_headers(Analyzer PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/src/Common.hpp>")
+set(TEST_SOURCE
+        tests/TestMain.cpp
+        )
 
-target_link_libraries(Analyzer
+add_library(Common INTERFACE)
+target_include_directories(Common INTERFACE src)
+target_compile_options(Common INTERFACE -fno-rtti)
+target_compile_options(Common INTERFACE -fPIC)
+target_compile_options(Common INTERFACE -Werror)
+if (SANITIZERS)
+    target_compile_options(Common INTERFACE -fsanitize=address,undefined)
+    target_link_options(Common INTERFACE -fsanitize=address,undefined)
+endif ()
+target_precompile_headers(Common INTERFACE "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/src/Common.hpp>")
+
+target_link_libraries(Common INTERFACE
         LLVMAnalysis
         LLVMAsmParser
         LLVMBitWriter
@@ -45,3 +46,16 @@ target_link_libraries(Analyzer
         LLVMPasses
         LLVMSupport
         )
+
+add_executable(Analyzer ${SOURCE} src/Main.cpp)
+target_link_libraries(Analyzer Common)
+set_target_properties(Analyzer PROPERTIES CXX_STANDARD 17)
+set_target_properties(Analyzer PROPERTIES CXX_STANDARD_REQUIRED ON)
+
+add_executable(AnalyzerTest ${SOURCE} ${TEST_SOURCE})
+target_link_libraries(AnalyzerTest Common)
+set_target_properties(AnalyzerTest PROPERTIES CXX_STANDARD 17)
+set_target_properties(AnalyzerTest PROPERTIES CXX_STANDARD_REQUIRED ON)
+# target_precompile_headers(AnalyzerTest PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/tests/doctest.h>")
+enable_testing()
+add_test(NAME AnalyzerTest COMMAND $<TARGET_FILE:AnalyzerTest>)
