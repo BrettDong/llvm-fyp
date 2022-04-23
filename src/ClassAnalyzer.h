@@ -23,16 +23,16 @@
 
 class ClassAnalyzer {
    private:
-    std::map<HashTy, ClassInfo> classes;
-    std::map<HashTy, int> classToCluster;
-    std::map<HashTy, int> classLocalIndex;
-    std::map<int, std::vector<HashTy>> clusters;
-    std::map<HashTy, ClassSet> subClasses;
-    std::map<HashTy, ClassSet> hierarchyCache;
-    Symbols *symbols;
+    std::map<ClassSymbol, ClassInfo> classes;
+    std::map<ClassSymbol, int> classToCluster;
+    std::map<ClassSymbol, int> classLocalIndex;
+    std::map<int, std::vector<ClassSymbol>> clusters;
+    std::map<ClassSymbol, ClassSet> subClasses;
+    std::map<ClassSymbol, ClassSet> hierarchyCache;
+    ClassSymbolManager<ClassSymbol> *symbols;
 
    public:
-    explicit ClassAnalyzer(Symbols *symbols) : symbols(symbols) {}
+    explicit ClassAnalyzer(ClassSymbolManager<ClassSymbol> *symbols) : symbols(symbols) {}
 
     [[nodiscard]] bool isPolymorphicType(llvm::StringRef name) const;
     [[nodiscard]] bool isPolymorphicType(const llvm::Type *ty) const;
@@ -40,17 +40,19 @@ class ClassAnalyzer {
     [[nodiscard]] size_t classCount() const { return classes.size(); }
     [[nodiscard]] size_t clusterCount() const { return clusters.size(); }
 
-    [[nodiscard]] const ClassInfo &getClass(HashTy classHash) const {
+    [[nodiscard]] const ClassInfo &getClass(ClassSymbol classHash) const {
         return classes.at(classHash);
     }
 
-    [[nodiscard]] int clusterOf(HashTy classHash) const { return classToCluster.at(classHash); }
+    [[nodiscard]] int clusterOf(ClassSymbol classHash) const {
+        return classToCluster.at(classHash);
+    }
 
-    [[nodiscard]] int clusterLocalIndexOf(HashTy classHash) const {
+    [[nodiscard]] int clusterLocalIndexOf(ClassSymbol classHash) const {
         return classLocalIndex.at(classHash);
     }
 
-    [[nodiscard]] const std::vector<HashTy> &getCluster(int cluster) const {
+    [[nodiscard]] const std::vector<ClassSymbol> &getCluster(int cluster) const {
         return clusters.at(cluster);
     };
 
@@ -60,9 +62,9 @@ class ClassAnalyzer {
 
     void buildClassHierarchyGraph();
 
-    [[nodiscard]] ClassSet getSelfAndDerivedClasses(HashTy classHash);
+    [[nodiscard]] ClassSet getSelfAndDerivedClasses(ClassSymbol classHash);
 
-    [[nodiscard]] const std::map<HashTy, ClassInfo> &getAllClasses() const { return classes; }
+    [[nodiscard]] const std::map<ClassSymbol, ClassInfo> &getAllClasses() const { return classes; }
 };
 
 #endif  // CLASS_ANALYZER_H

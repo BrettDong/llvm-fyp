@@ -32,7 +32,7 @@ class Analyzer {
 
     std::map<std::string, ClassSet> functionRetTypes;
 
-    std::unique_ptr<Symbols> symbols;
+    std::unique_ptr<ClassSymbolManager<ClassSymbol>> symbols;
     std::unique_ptr<ClassAnalyzer> classes;
 
     int totalCHATargets = 0;
@@ -42,8 +42,8 @@ class Analyzer {
 
    private:
     std::optional<int> getVTableIndex(const llvm::CallBase *callInst) const;
-    std::optional<HashTy> getVirtCallType(const llvm::CallBase *callInst) const;
-    [[nodiscard]] std::set<std::string> collectVirtualMethods(const std::set<HashTy> &types,
+    std::optional<ClassSymbol> getVirtCallType(const llvm::CallBase *callInst) const;
+    [[nodiscard]] std::set<std::string> collectVirtualMethods(const std::set<ClassSymbol> &types,
                                                               int index) const;
     void analyzeVirtCall(const llvm::CallBase *callInst);
     void analyzeFunction(const llvm::Function &f);

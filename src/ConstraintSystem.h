@@ -26,7 +26,7 @@ class ConstraintSystem {
    private:
     using NodeTy = const llvm::Value *;
     using NodeID = int;
-    using Elem = HashTy;
+    using Elem = ClassSymbol;
 
     friend class ConstraintSolver;
     friend class ConstraintSolverV1;

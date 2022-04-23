@@ -28,7 +28,7 @@ class FunctionObjectFlow {
     ConstraintSystem constraintSystem;
 
     ClassAnalyzer *classes;
-    Symbols *symbols;
+    ClassSymbolManager<ClassSymbol> *symbols;
     std::map<std::string, ClassSet> &functionRetTypes;
     const llvm::Function *function = nullptr;
     std::vector<const llvm::Value *> ret;
@@ -36,7 +36,7 @@ class FunctionObjectFlow {
     void handleCallBase(const llvm::Instruction *inst);
 
    public:
-    explicit FunctionObjectFlow(ClassAnalyzer *classes, Symbols *symbols,
+    explicit FunctionObjectFlow(ClassAnalyzer *classes, ClassSymbolManager<ClassSymbol> *symbols,
                                 std::map<std::string, ClassSet> &functionRetTypes)
         : classes(classes), symbols(symbols), functionRetTypes(functionRetTypes) {}
 

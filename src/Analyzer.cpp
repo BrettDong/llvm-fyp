@@ -36,8 +36,8 @@ std::optional<int> Analyzer::getVTableIndex(const CallBase *callInst) const {
     return index->getZExtValue();
 }
 
-std::optional<HashTy> Analyzer::getVirtCallType(const CallBase *callInst) const {
-    auto getClassType = [this](const Value *operand) -> std::optional<HashTy> {
+std::optional<ClassSymbol> Analyzer::getVirtCallType(const CallBase *callInst) const {
+    auto getClassType = [this](const Value *operand) -> std::optional<ClassSymbol> {
         if (classes->isPolymorphicType(operand->getType())) {
             auto className = operand->getType()->getPointerElementType()->getStructName();
             return symbols->hashClassName(className);
@@ -58,9 +58,9 @@ std::optional<HashTy> Analyzer::getVirtCallType(const CallBase *callInst) const 
     }
 }
 
-set<string> Analyzer::collectVirtualMethods(const set<HashTy> &types, int index) const {
+set<string> Analyzer::collectVirtualMethods(const set<ClassSymbol> &types, int index) const {
     set<string> targets;
-    for (const HashTy className : types) {
+    for (const ClassSymbol className : types) {
         auto vTable = classes->getClass(className).getVTable();
         if (vTable.empty()) {
             // outs() << derived << " does not have VTable!\n";
@@ -94,7 +94,7 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
         // outs() << "cannot get virt call type" << '\n';
         return;
     }
-    set<HashTy> derivedClasses = classes->getSelfAndDerivedClasses(type.value()).toClasses();
+    set<ClassSymbol> derivedClasses = classes->getSelfAndDerivedClasses(type.value()).toClasses();
 
     set<string> CHA = collectVirtualMethods(derivedClasses, index.value());
 
@@ -139,7 +139,7 @@ void Analyzer::analyzeFunction(const Function &f) {
 
 Analyzer::Analyzer() {
     llvmContext = make_unique<LLVMContext>();
-    symbols = std::make_unique<Symbols>();
+    symbols = std::make_unique<ClassSymbolManager<ClassSymbol>>();
     classes = std::make_unique<ClassAnalyzer>(symbols.get());
 }
 

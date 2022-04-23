@@ -142,15 +142,6 @@ void ConstraintSolver::solve() {
     }
 }
 
-static bool isSubsetOf(std::set<HashTy> a, const std::set<HashTy> &b) {
-    for (const auto &elem : a) {
-        if (b.count(elem) == 0) {
-            return false;
-        }
-    }
-    return true;
-}
-
 bool ConstraintSolver::sanityCheck() {
     std::queue<NodeID> q;
     std::set<NodeID> visited;

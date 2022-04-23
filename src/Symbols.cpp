@@ -14,23 +14,62 @@
 
 #include "Symbols.h"
 
-HashTy Symbols::hashStr(const std::string& str) {
-    HashTy hash = 5381;
+template <typename T>
+T SymbolManager<T>::hashStr(const std::string& str) {
+    T hash = 5381;
     for (auto c : str) {
         hash = hash * 33 + c;
     }
     return hash;
 }
 
-HashTy Symbols::hashStr(const llvm::StringRef& str) {
-    HashTy hash = 5381;
+template <typename T>
+T SymbolManager<T>::hashStr(const llvm::StringRef& str) {
+    T hash = 5381;
     for (auto c : str) {
         hash = hash * 33 + c;
     }
     return hash;
 }
 
-llvm::StringRef Symbols::canonicalizeClassName(llvm::StringRef symbol) {
+template <typename T>
+T SymbolManager<T>::hashSymbol(const llvm::StringRef& symbol) {
+    T hash = hashStr(symbol);
+    while (storage.count(hash) != 0) {
+        if (storage[hash] == symbol) {
+            return hash;
+        }
+        ++hash;
+    }
+    storage[hash] = symbol.str();
+    return hash;
+}
+
+template <typename T>
+bool SymbolManager<T>::exist(const llvm::StringRef& symbol) const {
+    T hash = hashStr(symbol);
+    while (storage.count(hash) != 0) {
+        if (storage.at(hash) == symbol) {
+            return true;
+        }
+        ++hash;
+    }
+    return false;
+}
+
+template <typename T>
+std::string SymbolManager<T>::getSymbolName(T hash) const {
+    auto it = storage.find(hash);
+    if (it != storage.end()) {
+        return it->second;
+    }
+    return {};
+}
+
+template class SymbolManager<SymbolHashTy>;
+
+template <typename T>
+llvm::StringRef ClassSymbolManager<T>::canonicalizeClassName(llvm::StringRef symbol) {
     static const llvm::StringRef classPrefix = "class.";
     static const llvm::StringRef structPrefix = "struct.";
 
@@ -49,35 +88,21 @@ llvm::StringRef Symbols::canonicalizeClassName(llvm::StringRef symbol) {
     return symbol;
 }
 
-HashTy Symbols::hashClassName(llvm::StringRef symbol) {
-    llvm::StringRef canonical = canonicalizeClassName(symbol);
-    HashTy hash = hashStr(canonical);
-    while (storage.count(hash) != 0) {
-        if (storage[hash] == canonical) {
-            return hash;
-        }
-        ++hash;
-    }
-    storage[hash] = canonical.str();
-    return hash;
+template <typename T>
+T ClassSymbolManager<T>::hashClassName(llvm::StringRef symbol) {
+    return SymbolManager<T>::hashSymbol(canonicalizeClassName(symbol));
 }
 
-bool Symbols::exist(llvm::StringRef symbol) const {
-    llvm::StringRef canonical = canonicalizeClassName(symbol);
-    HashTy hash = hashStr(canonical);
-    while (storage.count(hash) != 0) {
-        if (storage.at(hash) == canonical) {
-            return true;
-        }
-        ++hash;
-    }
-    return false;
+template <typename T>
+bool ClassSymbolManager<T>::existClassName(llvm::StringRef symbol) const {
+    return SymbolManager<T>::exist(canonicalizeClassName(symbol));
 }
 
-std::string Symbols::getClassName(HashTy hash) const {
-    auto it = storage.find(hash);
-    if (it != storage.end()) {
-        return it->second;
-    }
-    return {};
+template <typename T>
+std::string ClassSymbolManager<T>::getClassName(T hash) const {
+    return SymbolManager<T>::getSymbolName(hash);
 }
+
+template class ClassSymbolManager<ClassSymbol>;
+
+template class FunctionSymbolManager<FunctionSymbol>;

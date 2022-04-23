@@ -48,13 +48,13 @@ class ClassSet {
 
     void setBit(int i, bool v);
 
-    void insert(HashTy classHash);
+    void insert(ClassSymbol classHash);
 
     [[nodiscard]] bool empty() const;
 
     [[nodiscard]] int count() const;
 
-    [[nodiscard]] std::set<HashTy> toClasses() const;
+    [[nodiscard]] std::set<ClassSymbol> toClasses() const;
 
     // intersect this to rhs, return true if value is changed
     bool intersectWith(const ClassSet &rhs);

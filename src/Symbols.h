@@ -18,23 +18,46 @@
 
 #include "Common.hpp"
 
-using HashTy = std::uint32_t;
+using SymbolHashTy = std::uint32_t;
 
-class Symbols {
-   private:
-    std::map<HashTy, std::string> storage;
+template <typename T = SymbolHashTy>
+class SymbolManager {
+   protected:
+    std::unordered_map<T, std::string> storage;
 
-    static HashTy hashStr(const std::string &str);
-    static HashTy hashStr(const llvm::StringRef &str);
+    static T hashStr(const std::string &str);
+    static T hashStr(const llvm::StringRef &str);
 
+    T hashSymbol(const llvm::StringRef &symbol);
+
+    [[nodiscard]] bool exist(const llvm::StringRef &symbol) const;
+
+    [[nodiscard]] std::string getSymbolName(T hash) const;
+};
+
+extern template class SymbolManager<SymbolHashTy>;
+
+using ClassSymbol = SymbolHashTy;
+
+template <typename T = ClassSymbol>
+class ClassSymbolManager : public SymbolManager<T> {
    public:
     static llvm::StringRef canonicalizeClassName(llvm::StringRef symbol);
 
-    HashTy hashClassName(llvm::StringRef symbol);
+    T hashClassName(llvm::StringRef symbol);
 
-    bool exist(llvm::StringRef symbol) const;
+    [[nodiscard]] bool existClassName(llvm::StringRef symbol) const;
 
-    [[nodiscard]] std::string getClassName(HashTy hash) const;
+    [[nodiscard]] std::string getClassName(T hash) const;
 };
+
+extern template class ClassSymbolManager<ClassSymbol>;
+
+using FunctionSymbol = SymbolHashTy;
+
+template <typename T = FunctionSymbol>
+class FunctionSymbolManager : public SymbolManager<T> {};
+
+extern template class FunctionSymbolManager<FunctionSymbol>;
 
 #endif  // SYMBOLS_H

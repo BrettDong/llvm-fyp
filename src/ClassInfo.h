@@ -22,18 +22,19 @@
 class ClassInfo {
    private:
     std::vector<std::string> vTable;
-    std::set<HashTy> parentClasses;
-    HashTy hash;
-    Symbols *symbols;
+    std::set<ClassSymbol> parentClasses;
+    ClassSymbol hash;
+    ClassSymbolManager<ClassSymbol> *symbols;
 
    public:
-    explicit ClassInfo(HashTy hash, Symbols *symbols) : hash(hash), symbols(symbols) {}
+    explicit ClassInfo(ClassSymbol hash, ClassSymbolManager<ClassSymbol> *symbols)
+        : hash(hash), symbols(symbols) {}
 
     void decodeVTable(const llvm::Constant *initializer);
     void decodeRTTI(const llvm::Constant *initializer);
 
     [[nodiscard]] const std::vector<std::string> &getVTable() const { return vTable; }
-    [[nodiscard]] const std::set<HashTy> &getParentClasses() const { return parentClasses; }
+    [[nodiscard]] const std::set<ClassSymbol> &getParentClasses() const { return parentClasses; }
 
     [[nodiscard]] std::string dumpVTable() const;
 };

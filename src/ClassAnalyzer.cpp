@@ -21,7 +21,7 @@
 using namespace llvm;
 
 bool ClassAnalyzer::isPolymorphicType(llvm::StringRef name) const {
-    return symbols->exist(name) && classes.count(symbols->hashClassName(name));
+    return symbols->existClassName(name) && classes.count(symbols->hashClassName(name));
 }
 
 bool ClassAnalyzer::isPolymorphicType(const llvm::Type *ty) const {
@@ -39,7 +39,7 @@ void ClassAnalyzer::analyzeModule(Module *module) {
             const std::string name = demangle(variable.getName().str());
             if (name.find("vtable for ") != std::string::npos) {
                 const std::string className = removePrefix(name, "vtable for ");
-                HashTy hash = symbols->hashClassName(className);
+                ClassSymbol hash = symbols->hashClassName(className);
                 if (classes.count(hash) == 0) {
                     classes.insert({hash, ClassInfo(hash, symbols)});
                 }
@@ -53,7 +53,7 @@ void ClassAnalyzer::analyzeModule(Module *module) {
             const std::string name = demangle(variable.getName().str());
             if (name.find("typeinfo for ") != std::string::npos) {
                 const std::string className = removePrefix(name, "typeinfo for ");
-                HashTy hash = symbols->hashClassName(className);
+                ClassSymbol hash = symbols->hashClassName(className);
                 if (classes.count(hash) == 0) {
                     classes.insert({hash, ClassInfo(hash, symbols)});
                 }
@@ -64,7 +64,7 @@ void ClassAnalyzer::analyzeModule(Module *module) {
 }
 
 void ClassAnalyzer::clusterClasses() {
-    std::map<HashTy, std::set<HashTy>> edges;
+    std::map<ClassSymbol, std::set<ClassSymbol>> edges;
     for (const auto &[hash, info] : classes) {
         for (const auto &parent : info.getParentClasses()) {
             edges[hash].insert(parent);
@@ -79,10 +79,10 @@ void ClassAnalyzer::clusterClasses() {
         }
         const int currentCluster = nextClusterNo++;
         int localIndex = 0;
-        std::queue<HashTy> q;
+        std::queue<ClassSymbol> q;
         q.push(hash);
         while (!q.empty()) {
-            HashTy cur = q.front();
+            ClassSymbol cur = q.front();
             q.pop();
             classToCluster[cur] = currentCluster;
             classLocalIndex[cur] = localIndex++;
@@ -98,7 +98,7 @@ void ClassAnalyzer::clusterClasses() {
 
 void ClassAnalyzer::buildClassHierarchyGraph() {
     for (const auto &[hash, info] : classes) {
-        for (const HashTy parentHash : info.getParentClasses()) {
+        for (const ClassSymbol parentHash : info.getParentClasses()) {
             if (subClasses.count(parentHash) == 0) {
                 subClasses.insert({parentHash, ClassSet(this, clusterOf(parentHash))});
             }
@@ -107,21 +107,21 @@ void ClassAnalyzer::buildClassHierarchyGraph() {
     }
 }
 
-ClassSet ClassAnalyzer::getSelfAndDerivedClasses(HashTy classHash) {
+ClassSet ClassAnalyzer::getSelfAndDerivedClasses(ClassSymbol classHash) {
     if (hierarchyCache.count(classHash) > 0) {
         return hierarchyCache.at(classHash);
     }
 
     ClassSet result(this, classToCluster.at(classHash));
-    std::queue<HashTy> q;
+    std::queue<ClassSymbol> q;
     q.push(classHash);
 
     while (!q.empty()) {
-        HashTy cur = q.front();
+        ClassSymbol cur = q.front();
         q.pop();
         result.insert(cur);
         if (subClasses.count(cur) > 0) {
-            for (const HashTy subClass : subClasses.at(cur).toClasses()) {
+            for (const ClassSymbol subClass : subClasses.at(cur).toClasses()) {
                 q.push(subClass);
             }
         }

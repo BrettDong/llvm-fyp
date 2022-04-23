@@ -23,6 +23,7 @@ set(SOURCE
         )
 
 set(TEST_SOURCE
+        tests/ClassSymbolTest.cpp
         tests/TestMain.cpp
         )
 

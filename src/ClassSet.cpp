@@ -47,7 +47,7 @@ void ClassSet::setBit(int i, bool v) {
     }
 }
 
-void ClassSet::insert(HashTy classHash) {
+void ClassSet::insert(ClassSymbol classHash) {
     if (cluster == nullCluster) {
         setClusterId(classes->clusterOf(classHash));
     }
@@ -77,8 +77,8 @@ int ClassSet::count() const {
     return ans;
 }
 
-std::set<HashTy> ClassSet::toClasses() const {
-    std::set<HashTy> answer;
+std::set<ClassSymbol> ClassSet::toClasses() const {
+    std::set<ClassSymbol> answer;
     for (int i = 0; i < bits; i++) {
         if (getBit(i)) {
             answer.insert(classes->getCluster(cluster).at(i));
