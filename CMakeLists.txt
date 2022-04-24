@@ -12,7 +12,6 @@ add_definitions(${LLVM_DEFINITIONS})
 set(SOURCE
         src/Analyzer.cpp
         src/ClassHierarchy.cpp
-        src/ClassInfo.cpp
         src/ClassSet.cpp
         src/Common.hpp
         src/ConstraintSolver.cpp
