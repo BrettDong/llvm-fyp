@@ -53,13 +53,18 @@ target_link_libraries(Common INTERFACE
         LLVMSupport
         )
 
-add_executable(Analyzer ${SOURCE} src/Main.cpp)
-target_link_libraries(Analyzer Common)
+add_library(AnalyzerCommon STATIC ${SOURCE})
+target_link_libraries(AnalyzerCommon Common)
+set_target_properties(AnalyzerCommon PROPERTIES CXX_STANDARD 17)
+set_target_properties(AnalyzerCommon PROPERTIES CXX_STANDARD_REQUIRED ON)
+
+add_executable(Analyzer src/Main.cpp)
+target_link_libraries(Analyzer AnalyzerCommon)
 set_target_properties(Analyzer PROPERTIES CXX_STANDARD 17)
 set_target_properties(Analyzer PROPERTIES CXX_STANDARD_REQUIRED ON)
 
-add_executable(AnalyzerTest ${SOURCE} ${TEST_SOURCE})
-target_link_libraries(AnalyzerTest Common)
+add_executable(AnalyzerTest ${TEST_SOURCE})
+target_link_libraries(AnalyzerTest AnalyzerCommon)
 set_target_properties(AnalyzerTest PROPERTIES CXX_STANDARD 17)
 set_target_properties(AnalyzerTest PROPERTIES CXX_STANDARD_REQUIRED ON)
 # target_precompile_headers(AnalyzerTest PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/tests/doctest.h>")
