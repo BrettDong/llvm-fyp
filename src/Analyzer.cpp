@@ -157,7 +157,12 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
         return;
     }
 
-    const Value *obj = callInst->getOperand(0);
+    const Value *obj = nullptr;
+    if (callInst->hasStructRetAttr()) {
+        obj = callInst->getOperand(1);
+    } else {
+        obj = callInst->getOperand(0);
+    }
     FunctionObjectFlow flow(hierarchy.get(), classSymbols.get(), functionRetTypes);
     flow.analyzeFunction(callInst->getParent()->getParent());
     ClassSet OFATypes = flow.traverseBack(obj);
