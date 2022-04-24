@@ -16,7 +16,7 @@
 #ifndef CONSTRAINT_SOLVER_H
 #define CONSTRAINT_SOLVER_H
 
-#include "ClassAnalyzer.h"
+#include "ClassHierarchy.h"
 #include "Common.hpp"
 #include "ConstraintSystem.h"
 
@@ -27,7 +27,7 @@ class ConstraintSolver {
     using Elem = ConstraintSystem::Elem;
 
     ConstraintSystem *system;
-    ClassAnalyzer *classes;
+    ClassHierarchy *hierarchy;
     std::map<NodeID, ClassSet> answers;
 
     bool isSameCluster(std::set<Elem> a, std::set<Elem> b) const;
@@ -37,8 +37,8 @@ class ConstraintSolver {
     bool unionWith(ClassSet &dst, const ClassSet &src);
 
    public:
-    explicit ConstraintSolver(ConstraintSystem *system, ClassAnalyzer *classes)
-        : system(system), classes(classes) {}
+    explicit ConstraintSolver(ConstraintSystem *system, ClassHierarchy *hierarchy)
+        : system(system), hierarchy(hierarchy) {}
     void solve();
     bool sanityCheck();
     ClassSet query(NodeTy v);

@@ -105,4 +105,14 @@ std::string ClassSymbolManager<T>::getClassName(T hash) const {
 
 template class ClassSymbolManager<ClassSymbol>;
 
+template <typename T>
+T FunctionSymbolManager<T>::hashFunctionName(const llvm::StringRef& symbol) {
+    return SymbolManager<T>::hashSymbol(symbol);
+}
+
+template <typename T>
+std::string FunctionSymbolManager<T>::getFunctionName(T hash) const {
+    return SymbolManager<T>::getSymbolName(hash);
+}
+
 template class FunctionSymbolManager<FunctionSymbol>;

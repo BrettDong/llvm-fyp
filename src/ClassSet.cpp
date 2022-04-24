@@ -14,13 +14,13 @@
 
 #include "ClassSet.h"
 
-#include "ClassAnalyzer.h"
+#include "ClassHierarchy.h"
 
-ClassSet::ClassSet(const ClassAnalyzer *classes) : classes(classes), cluster(nullCluster) {
+ClassSet::ClassSet(const ClassHierarchy *classes) : classes(classes), cluster(nullCluster) {
     bits = 0;
 }
 
-ClassSet::ClassSet(const ClassAnalyzer *classes, int cluster) : classes(classes) {
+ClassSet::ClassSet(const ClassHierarchy *classes, int cluster) : classes(classes) {
     setClusterId(cluster);
 }
 
@@ -51,12 +51,12 @@ void ClassSet::setBit(int i, bool v) {
 
 void ClassSet::insert(ClassSymbol classHash) {
     if (cluster == nullCluster) {
-        setClusterId(classes->clusterOf(classHash));
+        setClusterId(classes->getClusterOf(classHash));
     }
-    if (classes->clusterOf(classHash) != cluster) {
+    if (classes->getClusterOf(classHash) != cluster) {
         throw std::runtime_error("Inserting class from a different cluster");
     }
-    setBit(classes->clusterLocalIndexOf(classHash), true);
+    setBit(classes->getClusterLocalIndexOf(classHash), true);
 }
 
 bool ClassSet::empty() const {
@@ -87,6 +87,16 @@ int ClassSet::count() const {
 
 std::set<ClassSymbol> ClassSet::toClasses() const {
     std::set<ClassSymbol> answer;
+    /*
+    for (int i = 0; i < elems(); i++) {
+        ElemTy x = storage[i];
+        while (x != 0) {
+            int t = __builtin_popcountll(~x & (x - 1));
+            answer.insert(classes->getCluster(cluster).at(i * ElemBits + t));
+            x = x & (x - 1);
+        }
+    }
+     */
     for (int i = 0; i < bits; i++) {
         if (getBit(i)) {
             answer.insert(classes->getCluster(cluster).at(i));

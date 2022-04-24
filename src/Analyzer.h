@@ -18,7 +18,7 @@
 
 #include <llvm/Support/SourceMgr.h>
 
-#include "ClassAnalyzer.h"
+#include "ClassHierarchy.h"
 #include "Common.hpp"
 
 class Analyzer {
@@ -32,8 +32,11 @@ class Analyzer {
 
     std::map<std::string, ClassSet> functionRetTypes;
 
-    std::unique_ptr<ClassSymbolManager<ClassSymbol>> symbols;
-    std::unique_ptr<ClassAnalyzer> classes;
+    std::unordered_map<ClassSymbol, std::vector<FunctionSymbol>> vTables;
+
+    std::unique_ptr<ClassSymbolManager<ClassSymbol>> classSymbols;
+    std::unique_ptr<FunctionSymbolManager<FunctionSymbol>> functionSymbols;
+    std::unique_ptr<ClassHierarchy> hierarchy;
 
     int totalCHATargets = 0;
     int totalOFATargets = 0;
@@ -45,8 +48,11 @@ class Analyzer {
     std::optional<ClassSymbol> getVirtCallType(const llvm::CallBase *callInst) const;
     [[nodiscard]] std::set<std::string> collectVirtualMethods(const std::set<ClassSymbol> &types,
                                                               int index) const;
+    void decodeVTable(ClassSymbol hash, const llvm::Constant *initializer);
+    void decodeRTTI(ClassSymbol derived, const llvm::Constant *initializer);
     void analyzeVirtCall(const llvm::CallBase *callInst);
     void analyzeFunction(const llvm::Function &f);
+    void analyzeGlobalVariable(const llvm::GlobalVariable *gv);
 
    public:
     Analyzer();

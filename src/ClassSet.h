@@ -19,7 +19,7 @@
 #include "Common.hpp"
 #include "Symbols.h"
 
-class ClassAnalyzer;
+class ClassHierarchy;
 
 class ClassSet {
    private:
@@ -29,7 +29,7 @@ class ClassSet {
 
     static constexpr int nullCluster = -1;
 
-    const ClassAnalyzer *classes;
+    const ClassHierarchy *classes;
     int cluster;
     int bits;
     llvm::SmallVector<ElemTy> storage;
@@ -39,9 +39,9 @@ class ClassSet {
     void setClusterId(int clusterId);
 
    public:
-    explicit ClassSet(const ClassAnalyzer *classes);
+    explicit ClassSet(const ClassHierarchy *classes);
 
-    explicit ClassSet(const ClassAnalyzer *classes, int cluster);
+    explicit ClassSet(const ClassHierarchy *classes, int cluster);
 
     ClassSet(const ClassSet &rhs) = default;
 

@@ -16,6 +16,7 @@
 
 #include <queue>
 
+#include "ClassHierarchy.h"
 #include "ConstraintSolver.h"
 #include "Utils.h"
 
@@ -42,10 +43,9 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
                    callInst->getType()->getPointerElementType()->isStructTy()) {
             nominalTy = callInst->getType();
         }
-        if (nominalTy && classes->isPolymorphicType(nominalTy)) {
+        if (nominalTy && hierarchy->isPolymorphicPointerType(nominalTy)) {
             auto hash = symbols->hashClassName(nominalTy->getPointerElementType()->getStructName());
-            constraintSystem.addLiteralConstraint(dyn_cast<Value>(inst),
-                                                  classes->getSelfAndDerivedClasses(hash),
+            constraintSystem.addLiteralConstraint(dyn_cast<Value>(inst), hierarchy->query(hash),
                                                   ConstraintRelation::Superset);
         }
     }
@@ -55,10 +55,10 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
     function = f;
 
     auto constrainNominalType = [=](const Value *v) {
-        if (classes->isPolymorphicType(v->getType())) {
+        if (hierarchy->isPolymorphicPointerType(v->getType())) {
             auto className = v->getType()->getPointerElementType()->getStructName();
             auto hash = symbols->hashClassName(className);
-            constraintSystem.addLiteralConstraint(v, classes->getSelfAndDerivedClasses(hash));
+            constraintSystem.addLiteralConstraint(v, hierarchy->query(hash));
         }
     };
 
@@ -69,7 +69,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
     }
 
     if (f->hasStructRetAttr() && f->arg_size() > 1 &&
-        classes->isPolymorphicType(f->getArg(0)->getType())) {
+        hierarchy->isPolymorphicPointerType(f->getArg(0)->getType())) {
         ret.emplace_back(f->getArg(0));
     }
 
@@ -82,17 +82,17 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                         auto elemTy = inst.getType()->getPointerElementType();
                         if (elemTy->isStructTy()) {
                             auto className = elemTy->getStructName();
-                            if (classes->isPolymorphicType(className)) {
+                            if (hierarchy->isPolymorphicClass(className)) {
                                 auto hash = symbols->hashClassName(className);
-                                auto classSet = classes->getSelfAndDerivedClasses(hash);
+                                auto classSet = hierarchy->query(hash);
                                 constraintSystem.addLiteralConstraint(&inst, classSet);
                             }
                         }
                     } else if (inst.getType()->isStructTy()) {
                         auto className = inst.getType()->getStructName();
-                        if (classes->isPolymorphicType(className)) {
+                        if (hierarchy->isPolymorphicClass(className)) {
                             auto hash = symbols->hashClassName(className);
-                            auto classSet = classes->getSelfAndDerivedClasses(hash);
+                            auto classSet = hierarchy->query(hash);
                             constraintSystem.addLiteralConstraint(&inst, classSet);
                         }
                     }
@@ -141,7 +141,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                 case Instruction::Ret: {
                     if (inst.getNumOperands() > 0) {
                         const Value *operand = inst.getOperand(0);
-                        if (classes->isPolymorphicType(operand->getType())) {
+                        if (hierarchy->isPolymorphicPointerType(operand->getType())) {
                             constrainNominalType(operand);
                             ret.emplace_back(operand);
                         }
@@ -159,15 +159,15 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
 }
 
 ClassSet FunctionObjectFlow::traverseBack(const Value *val) {
-    ConstraintSolver solver(&constraintSystem, classes);
+    ConstraintSolver solver(&constraintSystem, hierarchy);
     solver.solve();
     return solver.query(val);
 }
 
 ClassSet FunctionObjectFlow::queryRetType() {
-    ConstraintSolver solver(&constraintSystem, classes);
+    ConstraintSolver solver(&constraintSystem, hierarchy);
     solver.solve();
-    ClassSet ans(classes);
+    ClassSet ans(hierarchy);
     for (const Value *r : ret) {
         ans.unionWith(solver.query(r));
     }

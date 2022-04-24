@@ -56,7 +56,12 @@ extern template class ClassSymbolManager<ClassSymbol>;
 using FunctionSymbol = SymbolHashTy;
 
 template <typename T = FunctionSymbol>
-class FunctionSymbolManager : public SymbolManager<T> {};
+class FunctionSymbolManager : public SymbolManager<T> {
+   public:
+    T hashFunctionName(const llvm::StringRef &symbol);
+
+    [[nodiscard]] std::string getFunctionName(T hash) const;
+};
 
 extern template class FunctionSymbolManager<FunctionSymbol>;
 

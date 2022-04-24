@@ -16,6 +16,7 @@
 
 #include <llvm/IRReader/IRReader.h>
 
+#include "ClassHierarchy.h"
 #include "ClassSet.h"
 #include "FunctionObjectFlow.h"
 #include "Utils.h"
@@ -38,9 +39,9 @@ std::optional<int> Analyzer::getVTableIndex(const CallBase *callInst) const {
 
 std::optional<ClassSymbol> Analyzer::getVirtCallType(const CallBase *callInst) const {
     auto getClassType = [this](const Value *operand) -> std::optional<ClassSymbol> {
-        if (classes->isPolymorphicType(operand->getType())) {
+        if (hierarchy->isPolymorphicPointerType(operand->getType())) {
             auto className = operand->getType()->getPointerElementType()->getStructName();
-            return symbols->hashClassName(className);
+            return classSymbols->hashClassName(className);
         }
         return std::nullopt;
     };
@@ -60,27 +61,77 @@ std::optional<ClassSymbol> Analyzer::getVirtCallType(const CallBase *callInst) c
 
 set<string> Analyzer::collectVirtualMethods(const set<ClassSymbol> &types, int index) const {
     set<string> targets;
-    for (const ClassSymbol className : types) {
-        auto vTable = classes->getClass(className).getVTable();
-        if (vTable.empty()) {
-            // outs() << derived << " does not have VTable!\n";
+    for (const ClassSymbol classSymbol : types) {
+        if (vTables.count(classSymbol) == 0) {
             continue;
         }
+        const auto &vTable = vTables.at(classSymbol);
         if (index >= vTable.size()) {
             continue;
         }
-        const std::string &target = vTable[index];
-        if (target.empty()) {
-            // outs() << index.value() << " is out-of-bound in VTable of " << derived << '\n';
-            continue;
+        string fnName = functionSymbols->getFunctionName(vTable[index]);
+        if (fnName != "__cxa_pure_virtual") {
+            targets.insert(fnName);
         }
-        targets.insert(demangle(target));
-    }
-    auto pure_virtual = targets.find("__cxa_pure_virtual");
-    if (pure_virtual != targets.end()) {
-        targets.erase(pure_virtual);
     }
     return targets;
+}
+
+void Analyzer::decodeVTable(ClassSymbol hash, const Constant *initializer) {
+    if (vTables.count(hash) > 0) {
+        return;
+    }
+    const auto *aggregate = dyn_cast<ConstantAggregate>(initializer);
+    if (aggregate == nullptr) {
+        return;
+    }
+    for (size_t i = 0; i < aggregate->getNumOperands(); i++) {
+        if (const auto *array = dyn_cast<ConstantArray>(aggregate->getAggregateElement(i))) {
+            for (size_t j = 0; j < array->getNumOperands(); j++) {
+                if (auto *expr = dyn_cast<ConstantExpr>(array->getAggregateElement(j))) {
+                    if (expr->isCast()) {
+                        auto *constant = dyn_cast<Constant>(expr);
+                        if (Constant *cast = ConstantExpr::getBitCast(constant, expr->getType())) {
+                            Value *operand = cast->getOperand(0);
+                            if (auto *f = dyn_cast<Function>(operand)) {
+                                auto fnHash = functionSymbols->hashFunctionName(f->getName());
+                                vTables[hash].push_back(fnHash);
+                            } else if (auto *a = dyn_cast<GlobalAlias>(operand)) {
+                                if (auto *af = dyn_cast<Function>(a->getAliasee())) {
+                                    auto fnHash = functionSymbols->hashFunctionName(af->getName());
+                                    vTables[hash].push_back(fnHash);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void Analyzer::decodeRTTI(ClassSymbol derived, const Constant *initializer) {
+    const auto *aggregate = dyn_cast<ConstantAggregate>(initializer);
+    if (aggregate == nullptr) {
+        return;
+    }
+    for (size_t i = 0; i < aggregate->getNumOperands(); i++) {
+        if (auto *expr = dyn_cast<ConstantExpr>(aggregate->getAggregateElement(i))) {
+            if (expr->isCast()) {
+                auto *constant = dyn_cast<Constant>(expr);
+                if (Constant *cast = ConstantExpr::getBitCast(constant, expr->getType())) {
+                    if (auto *v = dyn_cast<GlobalVariable>(cast->getOperand(0))) {
+                        std::string name = demangle(v->getName().str());
+                        if (beginsWith(name, "typeinfo for ")) {
+                            std::string baseName = removePrefix(name, "typeinfo for ");
+                            auto base = classSymbols->hashClassName(baseName);
+                            hierarchy->addRelation(base, derived);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 void Analyzer::analyzeVirtCall(const CallBase *callInst) {
@@ -94,35 +145,43 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
         // outs() << "cannot get virt call type" << '\n';
         return;
     }
-    set<ClassSymbol> derivedClasses = classes->getSelfAndDerivedClasses(type.value()).toClasses();
-
-    set<string> CHA = collectVirtualMethods(derivedClasses, index.value());
-
-    const Value *obj = callInst->getOperand(0);
-    FunctionObjectFlow flow(classes.get(), symbols.get(), functionRetTypes);
-    flow.analyzeFunction(callInst->getParent()->getParent());
-    set<string> OFA = collectVirtualMethods(flow.traverseBack(obj).toClasses(), index.value());
-    if (OFA.empty()) OFA = CHA;
-
+    ClassSet CHATypes = hierarchy->query(type.value());
+    set<string> CHA = collectVirtualMethods(CHATypes.toClasses(), index.value());
     if (CHA.empty()) {
-        outs() << "No target found when calling \"" << symbols->getClassName(type.value())
+        outs() << "No target found when calling \"" << classSymbols->getClassName(type.value())
                << "\" at vtable index " << index.value() << " in "
                << (callInst->getFunction()->getName().str()) << " : " << *callInst << '\n';
+        return;
     } else if (CHA.size() == 1) {
         ++totalTrivialCallSites;
+        return;
+    }
+
+    const Value *obj = callInst->getOperand(0);
+    FunctionObjectFlow flow(hierarchy.get(), classSymbols.get(), functionRetTypes);
+    flow.analyzeFunction(callInst->getParent()->getParent());
+    ClassSet OFATypes = flow.traverseBack(obj);
+    set<string> OFA;
+    if (OFATypes.count() == 0) {
+        outs() << "OFA reports null set in " << (callInst->getFunction()->getName().str()) << " : "
+               << *callInst << '\n';
+        ++totalNonTrivialCallSites;
+        totalCHATargets += CHA.size();
+        totalOFATargets += CHA.size();
+        return;
     } else {
+        OFA = collectVirtualMethods(OFATypes.toClasses(), index.value());
         ++totalNonTrivialCallSites;
         totalCHATargets += CHA.size();
         totalOFATargets += OFA.size();
+        if (CHA.size() > OFA.size()) {
+            outs() << "In function " << demangle(callInst->getFunction()->getName().str()) << "\n";
+            outs() << "At virtual call " << *callInst << "\n";
+            outs() << "Class hierarchy analysis (" << CHA.size() << "): " << list_out(CHA) << '\n';
+            outs() << "Object-flow analysis (" << OFA.size() << "): " << list_out(OFA) << '\n';
+            outs() << '\n';
+        }
     }
-    if (CHA == OFA) {
-        return;
-    }
-    outs() << "In function " << demangle(callInst->getFunction()->getName().str()) << "\n";
-    outs() << "At virtual call " << *callInst << "\n";
-    outs() << "Class hierarchy analysis (" << CHA.size() << "): " << list_out(CHA) << '\n';
-    outs() << "Object-flow analysis (" << OFA.size() << "): " << list_out(OFA) << '\n';
-    outs() << '\n';
 }
 
 void Analyzer::analyzeFunction(const Function &f) {
@@ -139,8 +198,9 @@ void Analyzer::analyzeFunction(const Function &f) {
 
 Analyzer::Analyzer() {
     llvmContext = make_unique<LLVMContext>();
-    symbols = std::make_unique<ClassSymbolManager<ClassSymbol>>();
-    classes = std::make_unique<ClassAnalyzer>(symbols.get());
+    classSymbols = std::make_unique<ClassSymbolManager<ClassSymbol>>();
+    functionSymbols = std::make_unique<FunctionSymbolManager<FunctionSymbol>>();
+    hierarchy = std::make_unique<ClassHierarchy>(classSymbols.get());
 }
 
 static void printTime(const decltype(chrono::system_clock::now()) &start) {
@@ -194,17 +254,26 @@ void Analyzer::analyze(vector<string> files) {
 
     printTime(start);
     outs() << "Decoding virtual tables and RTTI" << '\n';
-    for_each_module(
-        [&](const std::string &file, llvm::Module *module) { classes->analyzeModule(module); });
+    for_each_module([&](const std::string &file, llvm::Module *module) {
+        for (const GlobalVariable &variable : module->getGlobalList()) {
+            if (variable.hasInitializer()) {
+                const std::string name = demangle(variable.getName().str());
+                if (name.find("vtable for ") != std::string::npos) {
+                    const std::string className = removePrefix(name, "vtable for ");
+                    ClassSymbol hash = classSymbols->hashClassName(className);
+                    decodeVTable(hash, variable.getInitializer());
+                } else if (name.find("typeinfo for ") != std::string::npos) {
+                    const std::string className = removePrefix(name, "typeinfo for ");
+                    ClassSymbol hash = classSymbols->hashClassName(className);
+                    decodeRTTI(hash, variable.getInitializer());
+                }
+            }
+        }
+    });
 
     printTime(start);
-    outs() << "Clustering " << classes->getAllClasses().size() << " classes" << '\n';
-    classes->clusterClasses();
-
-    printTime(start);
-    outs() << "Building class hierarchy graph in " << classes->clusterCount() << " clusters"
-           << '\n';
-    classes->buildClassHierarchyGraph();
+    outs() << "Clustering " << hierarchy->classCount() << " classes" << '\n';
+    hierarchy->clusterClasses();
 
     printTime(start);
     outs() << "Analyzing function return types" << '\n';
@@ -222,13 +291,13 @@ void Analyzer::analyze(vector<string> files) {
                        f.getReturnType()->getPointerElementType()->isStructTy()) {
                 retType = f.getReturnType();
             }
-            if (retType && classes->isPolymorphicType(retType)) {
-                FunctionObjectFlow flow(classes.get(), symbols.get(), functionRetTypes);
+            if (retType && hierarchy->isPolymorphicPointerType(retType)) {
+                FunctionObjectFlow flow(hierarchy.get(), classSymbols.get(), functionRetTypes);
                 flow.analyzeFunction(&f);
                 ClassSet OFA = flow.queryRetType();
                 auto className = retType->getPointerElementType()->getStructName();
-                auto hash = symbols->hashClassName(className);
-                ClassSet CHA = classes->getSelfAndDerivedClasses(hash);
+                auto hash = classSymbols->hashClassName(className);
+                ClassSet CHA = hierarchy->query(hash);
                 if (!OFA.empty() && OFA.count() < CHA.count()) {
                     functionRetTypes.insert({f.getName().str(), OFA});
                 }
