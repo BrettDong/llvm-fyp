@@ -60,10 +60,8 @@ void ConstraintSolver::solve() {
             if (system->backwardVisited[left]) {
                 changed = intersectWith(answers.at(left), answers.at(cur));
             } else {
-                for (const Elem &elem : answers.at(cur).toClasses()) {
-                    answers.at(left).insert(elem);
-                }
-                changed = true;
+                changed = unionWith(answers.at(left), answers.at(cur));
+                changed |= intersectWith(answers.at(left), answers.at(cur));
                 system->backwardVisited[left] = true;
             }
 
