@@ -21,10 +21,10 @@ jobs:
           sudo apt install llvm-12
       - name: Configure
         run: |
-          cmake -S . -B build -D CMAKE_BUILD_TYPE=Release -D SANITIZERS=ON -D LLVM_DIR=/usr/lib/llvm-12/cmake
+          cmake -S . -B build -D CMAKE_BUILD_TYPE=Release -D SANITIZERS=ON -D LLVM_DIR=/usr/lib/llvm-12/cmake -G Ninja
       - name: Build
         run: |
-          cmake --build build --target AnalyzerTest -j2
+          cmake --build build
       - name: Run tests
         run: |
           cd build && ctest
