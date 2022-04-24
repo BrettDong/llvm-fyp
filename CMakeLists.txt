@@ -36,6 +36,11 @@ if (SANITIZERS)
     target_compile_options(Common INTERFACE -fsanitize=address,undefined)
     target_link_options(Common INTERFACE -fsanitize=address,undefined)
 endif ()
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-march=native" COMPILER_SUPPORTS_MARCH_NATIVE)
+if (COMPILER_SUPPORTS_MARCH_NATIVE)
+    target_compile_options(Common INTERFACE -march=native)
+endif ()
 target_precompile_headers(Common INTERFACE "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/src/Common.hpp>")
 
 target_link_libraries(Common INTERFACE
