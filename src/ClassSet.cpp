@@ -18,23 +18,25 @@
 
 ClassSet::ClassSet(const ClassAnalyzer *classes) : classes(classes), cluster(nullCluster) {
     bits = 0;
-    elems = 0;
 }
 
 ClassSet::ClassSet(const ClassAnalyzer *classes, int cluster) : classes(classes) {
     setClusterId(cluster);
 }
 
+constexpr int ClassSet::elems() const {
+    if (bits % ElemBits == 0) {
+        return bits / ElemBits;
+    } else {
+        return bits / ElemBits + 1;
+    }
+}
+
 void ClassSet::setClusterId(int clusterId) {
     cluster = clusterId;
     bits = static_cast<int>(classes->getCluster(cluster).size());
-    if (bits % ElemBits == 0) {
-        elems = bits / ElemBits;
-    } else {
-        elems = bits / ElemBits + 1;
-    }
     storage.clear();
-    storage.resize(elems, 0);
+    storage.resize(elems(), 0);
 }
 
 bool ClassSet::getBit(int i) const { return storage[i / ElemBits] & (identity << (i % ElemBits)); }
@@ -69,11 +71,17 @@ int ClassSet::count() const {
         return 0;
     }
     int ans = 0;
+#if defined(__GNUC__) || defined(__clang__)
+    for (int i = 0; i < elems(); i++) {
+        ans += __builtin_popcountll(storage[i]);
+    }
+#else
     for (int i = 0; i < bits; i++) {
         if (getBit(i)) {
             ++ans;
         }
     }
+#endif
     return ans;
 }
 
@@ -96,7 +104,7 @@ bool ClassSet::intersectWith(const ClassSet &rhs) {
         return true;
     }
     bool changed = false;
-    for (int i = 0; i < elems; i++) {
+    for (int i = 0; i < elems(); i++) {
         ElemTy bit_and = storage[i] & rhs.storage[i];
         if (storage[i] != bit_and) {
             storage[i] = bit_and;
@@ -115,7 +123,7 @@ bool ClassSet::unionWith(const ClassSet &rhs) {
         return true;
     }
     bool changed = false;
-    for (int i = 0; i < elems; i++) {
+    for (int i = 0; i < elems(); i++) {
         ElemTy bit_or = storage[i] | rhs.storage[i];
         if (storage[i] != bit_or) {
             storage[i] = bit_or;
@@ -132,7 +140,7 @@ bool ClassSet::isSubSetOf(const ClassSet &rhs) const {
     if (rhs.cluster == nullCluster) {
         return false;
     }
-    for (int i = 0; i < elems; i++) {
+    for (int i = 0; i < elems(); i++) {
         if ((storage[i] | rhs.storage[i]) != rhs.storage[i]) {
             return false;
         }

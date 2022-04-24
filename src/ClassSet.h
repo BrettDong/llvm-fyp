@@ -32,8 +32,9 @@ class ClassSet {
     const ClassAnalyzer *classes;
     int cluster;
     int bits;
-    int elems;
     llvm::SmallVector<ElemTy> storage;
+
+    [[nodiscard]] constexpr int elems() const;
 
     void setClusterId(int clusterId);
 
