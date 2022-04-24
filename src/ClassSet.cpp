@@ -16,6 +16,51 @@
 
 #include "ClassHierarchy.h"
 
+#if defined(__x86_64__)
+#include <x86intrin.h>
+#endif
+
+// Use CPU instructions to accelerate bit manipulation if possible
+namespace {
+
+inline int countOnes(std::uint64_t n) {
+#if defined(__x86_64__)
+    return _popcnt64(n);
+#elif defined(__GNUC__) || defined(__clang__)
+    return __builtin_popcountll(n);
+#else
+    int c = 0;
+    while (n != 0) {
+        c += (n & 1);
+        n >>= 1;
+    }
+    return c;
+#endif
+}
+
+// Assuming n != 0
+inline std::uint64_t countTrailingZeros(std::uint64_t n) {
+#if defined(__x86_64__) && defined(__BMI__)
+    return _tzcnt_u64(n);
+#else
+    std::uint64_t c = 0;
+    while ((n & 1) == 0) {
+        ++c;
+        n = n / 2;
+    }
+    return c;
+#endif
+}
+
+inline std::uint64_t eraseRightmostOne(std::uint64_t n) {
+#if defined(__x86_64__) && defined(__BMI__)
+    return _blsr_u64(n);
+#else
+    return n & (n - 1);
+#endif
+}
+}  // namespace
+
 ClassSet::ClassSet(const ClassHierarchy *classes) : classes(classes), cluster(nullCluster) {
     bits = 0;
 }
@@ -71,35 +116,20 @@ int ClassSet::count() const {
         return 0;
     }
     int ans = 0;
-#if defined(__GNUC__) || defined(__clang__)
     for (int i = 0; i < elems(); i++) {
-        ans += __builtin_popcountll(storage[i]);
+        ans += countOnes(storage[i]);
     }
-#else
-    for (int i = 0; i < bits; i++) {
-        if (getBit(i)) {
-            ++ans;
-        }
-    }
-#endif
     return ans;
 }
 
 std::set<ClassSymbol> ClassSet::toClasses() const {
     std::set<ClassSymbol> answer;
-    /*
     for (int i = 0; i < elems(); i++) {
         ElemTy x = storage[i];
         while (x != 0) {
-            int t = __builtin_popcountll(~x & (x - 1));
+            int t = countTrailingZeros(x);
             answer.insert(classes->getCluster(cluster).at(i * ElemBits + t));
-            x = x & (x - 1);
-        }
-    }
-     */
-    for (int i = 0; i < bits; i++) {
-        if (getBit(i)) {
-            answer.insert(classes->getCluster(cluster).at(i));
+            x = eraseRightmostOne(x);
         }
     }
     return answer;
