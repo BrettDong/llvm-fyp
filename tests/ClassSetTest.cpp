@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <random>
+
 #include "ClassHierarchy.h"
 #include "doctest.h"
 
@@ -63,4 +65,29 @@ TEST_CASE("ClassSetTest") {
     CHECK(t.unionWith(s) == true);
     CHECK(t.count() == 2);
     CHECK(t.toClasses() == std::set<ClassSymbol>{hashA, hashB});
+}
+
+TEST_CASE("RandomClassSetTest") {
+    constexpr int nClasses = 500;
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    std::uniform_int_distribution<int> dist(1, nClasses);
+
+    auto symbols = std::make_unique<ClassSymbolManager<ClassSymbol>>();
+    ClassHierarchy hierarchy(symbols.get());
+    for (int i = 1; i <= nClasses; i++) {
+        auto a = symbols->hashClassName("Class" + std::to_string(i));
+        auto b = symbols->hashClassName("Class" + std::to_string(i + 1));
+        hierarchy.addRelation(a, b);
+    }
+    hierarchy.clusterClasses();
+
+    ClassSet s(&hierarchy);
+    std::set<ClassSymbol> elements;
+    for (int i = 1; i <= nClasses / 2; i++) {
+        auto hash = symbols->hashClassName("Class" + std::to_string(dist(mt)));
+        s.insert(hash);
+        elements.insert(hash);
+    }
+    CHECK(s.toClasses() == elements);
 }
