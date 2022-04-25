@@ -15,9 +15,12 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
-      - name: Install LLVM
+      - name: Install dependencies
         run: |
           sudo apt update
+          sudo apt install ninja-build
+      - name: Install LLVM
+        run: |
           sudo apt install llvm-12
       - name: Configure
         run: |
