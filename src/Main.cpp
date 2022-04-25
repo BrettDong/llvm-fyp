@@ -39,7 +39,8 @@ int main(int argc, char **argv) {
             string entry;
             while (getline(fin, entry)) {
                 if (filesystem::is_regular_file(entry) &&
-                    filesystem::path(entry).extension() == ".bc") {
+                    (filesystem::path(entry).extension() == ".bc" ||
+                     filesystem::path(entry).extension() == ".o")) {
                     bitcodeFiles.emplace_back(entry);
                 }
             }
