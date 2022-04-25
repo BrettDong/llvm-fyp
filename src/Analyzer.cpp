@@ -59,8 +59,9 @@ std::optional<ClassSymbol> Analyzer::getVirtCallType(const CallBase *callInst) c
     }
 }
 
-set<string> Analyzer::collectVirtualMethods(const set<ClassSymbol> &types, int index) const {
-    set<string> targets;
+set<FunctionSymbol> Analyzer::collectVirtualMethods(const set<ClassSymbol> &types,
+                                                    int index) const {
+    set<FunctionSymbol> targets;
     for (const ClassSymbol classSymbol : types) {
         if (vTables.count(classSymbol) == 0) {
             continue;
@@ -69,9 +70,8 @@ set<string> Analyzer::collectVirtualMethods(const set<ClassSymbol> &types, int i
         if (index >= vTable.size()) {
             continue;
         }
-        string fnName = functionSymbols->getFunctionName(vTable[index]);
-        if (fnName != "__cxa_pure_virtual") {
-            targets.insert(fnName);
+        if (vTable[index] != functionSymbols->hashFunctionName("__cxa_pure_virtual")) {
+            targets.insert(vTable[index]);
         }
     }
     return targets;
@@ -145,12 +145,16 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
         // outs() << "cannot get virt call type" << '\n';
         return;
     }
+    if (beginsWith(classSymbols->getClassName(type.value()), "std::")) {
+        return;
+    }
     ClassSet CHATypes = hierarchy->query(type.value());
-    set<string> CHA = collectVirtualMethods(CHATypes.toClasses(), index.value());
+    set<FunctionSymbol> CHA = collectVirtualMethods(CHATypes.toClasses(), index.value());
     if (CHA.empty()) {
-        outs() << "No target found when calling \"" << classSymbols->getClassName(type.value())
-               << "\" at vtable index " << index.value() << " in "
-               << (callInst->getFunction()->getName().str()) << " : " << *callInst << '\n';
+        outs() << "Error: CHA finds no target when calling \""
+               << classSymbols->getClassName(type.value()) << "\" at vtable index " << index.value()
+               << " in " << (callInst->getFunction()->getName().str()) << " : " << *callInst
+               << '\n';
         return;
     } else if (CHA.size() == 1) {
         ++totalTrivialCallSites;
@@ -166,10 +170,16 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
     FunctionObjectFlow flow(hierarchy.get(), classSymbols.get(), functionRetTypes);
     flow.analyzeFunction(callInst->getParent()->getParent());
     ClassSet OFATypes = flow.traverseBack(obj);
-    set<string> OFA;
+    set<FunctionSymbol> OFA;
     if (OFATypes.count() == 0) {
-        outs() << "OFA reports null set in " << (callInst->getFunction()->getName().str()) << " : "
-               << *callInst << '\n';
+        outs() << "Error: OFA reports null set in "
+               << demangle(callInst->getFunction()->getName().str()) << " : " << *callInst << '\n';
+        outs() << "Class hierarchy analysis (" << CHA.size() << "): ";
+        for (const auto fnHash : CHA) {
+            outs() << "\"" << demangle(functionSymbols->getFunctionName(fnHash)) << "\" ";
+        }
+        outs() << '\n';
+        outs() << '\n';
         ++totalNonTrivialCallSites;
         totalCHATargets += CHA.size();
         totalOFATargets += CHA.size();
@@ -179,11 +189,20 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
         ++totalNonTrivialCallSites;
         totalCHATargets += CHA.size();
         totalOFATargets += OFA.size();
+        return;
         if (CHA.size() > OFA.size()) {
             outs() << "In function " << demangle(callInst->getFunction()->getName().str()) << "\n";
             outs() << "At virtual call " << *callInst << "\n";
-            outs() << "Class hierarchy analysis (" << CHA.size() << "): " << list_out(CHA) << '\n';
-            outs() << "Object-flow analysis (" << OFA.size() << "): " << list_out(OFA) << '\n';
+            outs() << "Class hierarchy analysis (" << CHA.size() << "): ";
+            for (const auto fnHash : CHA) {
+                outs() << "\"" << demangle(functionSymbols->getFunctionName(fnHash)) << "\" ";
+            }
+            outs() << '\n';
+            outs() << "Object-flow analysis (" << OFA.size() << "): ";
+            for (const auto fnHash : OFA) {
+                outs() << "\"" << demangle(functionSymbols->getFunctionName(fnHash)) << "\" ";
+            }
+            outs() << '\n';
             outs() << '\n';
         }
     }

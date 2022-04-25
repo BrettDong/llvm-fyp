@@ -46,8 +46,8 @@ class Analyzer {
    private:
     std::optional<int> getVTableIndex(const llvm::CallBase *callInst) const;
     std::optional<ClassSymbol> getVirtCallType(const llvm::CallBase *callInst) const;
-    [[nodiscard]] std::set<std::string> collectVirtualMethods(const std::set<ClassSymbol> &types,
-                                                              int index) const;
+    [[nodiscard]] std::set<FunctionSymbol> collectVirtualMethods(const std::set<ClassSymbol> &types,
+                                                                 int index) const;
     void decodeVTable(ClassSymbol hash, const llvm::Constant *initializer);
     void decodeRTTI(ClassSymbol derived, const llvm::Constant *initializer);
     void analyzeVirtCall(const llvm::CallBase *callInst);
