@@ -148,6 +148,19 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                     }
                     break;
                 }
+                case Instruction::PHI: {
+                    if (hierarchy->isPolymorphicPointerType(inst.getType())) {
+                        constrainNominalType(&inst);
+                        const auto *phiInst = dyn_cast<PHINode>(&inst);
+                        for (unsigned int i = 0; i < phiInst->getNumIncomingValues(); i++) {
+                            const Value *v = phiInst->getIncomingValue(i);
+                            if (hierarchy->isPolymorphicPointerType(v->getType())) {
+                                constraintSystem.addConstraint(v, &inst);
+                            }
+                        }
+                    }
+                    break;
+                }
                 default: {
                     // outs() << "Unknown opcode " << inst.getOpcodeName() << '\n';
                 }
