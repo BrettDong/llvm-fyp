@@ -43,7 +43,7 @@ void ConstraintSolver::solve() {
         q.pop();
 
         if (answers.count(cur) == 0) {
-            answers.insert({cur, ClassSet(hierarchy)});
+            answers.insert({cur, ClassSet::EmptyClassSet(hierarchy)});
         }
 
         for (NodeID left : system->backwardEdges[cur]) {
@@ -52,7 +52,7 @@ void ConstraintSolver::solve() {
             }
 
             if (answers.count(left) == 0) {
-                answers.insert({left, ClassSet(hierarchy)});
+                answers.insert({left, ClassSet::EmptyClassSet(hierarchy)});
             }
 
             bool changed = false;
@@ -79,7 +79,7 @@ void ConstraintSolver::solve() {
             }
 
             if (answers.count(right) == 0) {
-                answers.insert({right, ClassSet(hierarchy)});
+                answers.insert({right, ClassSet::EmptyClassSet(hierarchy)});
             }
 
             bool changed = unionWith(answers.at(right), answers.at(cur));
@@ -100,15 +100,18 @@ void ConstraintSolver::solve() {
         if (system->backwardEdges[node].empty()) {
             continue;
         }
-        ClassSet unionOf(hierarchy);
+        ClassSet unionOf = ClassSet::EmptyClassSet(hierarchy);
         for (const NodeID &prev : system->backwardEdges[node]) {
             if (answers.count(prev) == 0) {
-                answers.insert({prev, ClassSet(hierarchy)});
+                answers.insert({prev, ClassSet::EmptyClassSet(hierarchy)});
             }
             unionWith(unionOf, answers.at(prev));
         }
         if (unionOf.empty()) {
             continue;
+        }
+        if (answers.count(node) == 0) {
+            answers.insert({node, ClassSet::EmptyClassSet(hierarchy)});
         }
         bool changed = intersectWith(answers.at(node), unionOf);
         if (changed) {
@@ -124,7 +127,7 @@ void ConstraintSolver::solve() {
         if (system->backwardEdges[cur].empty()) {
             continue;
         }
-        ClassSet unionOf(hierarchy);
+        ClassSet unionOf = ClassSet::EmptyClassSet(hierarchy);
         for (const NodeID &prev : system->backwardEdges[cur]) {
             unionWith(unionOf, answers.at(prev));
         }
@@ -168,14 +171,11 @@ bool ConstraintSolver::sanityCheck() {
     return true;
 }
 
-ClassSet ConstraintSolver::query(NodeTy v) {
-    if (system->idMap.count(v) == 0) {
-        return ClassSet(hierarchy);
-    }
-    if (answers.count(system->idMap[v]) == 0) {
-        llvm::outs() << "ERROR: node does not have an answer: " << *v << '\n';
+ClassSet ConstraintSolver::query(NodeID v) const {
+    if (answers.count(v) == 0) {
+        llvm::outs() << "ERROR: node " << v << " does not have an answer\n";
         llvm::outs().flush();
-        return ClassSet(hierarchy);
+        return ClassSet::EmptyClassSet(hierarchy);
     }
-    return answers.at(system->idMap[v]);
+    return answers.at(v);
 }

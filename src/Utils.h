@@ -20,7 +20,6 @@
 
 bool beginsWith(const std::string &str, const std::string &prefix);
 std::string removePrefix(const std::string &str, const std::string &prefix);
-std::string getInstSeqNum(const llvm::Value *v);
 
 template <typename T>
 std::string list_out(const T &collection, std::string delim = " ") {

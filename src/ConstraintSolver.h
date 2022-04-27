@@ -22,15 +22,11 @@
 
 class ConstraintSolver {
    private:
-    using NodeTy = ConstraintSystem::NodeTy;
     using NodeID = ConstraintSystem::NodeID;
-    using Elem = ConstraintSystem::Elem;
 
     ConstraintSystem *system;
     ClassHierarchy *hierarchy;
     std::map<NodeID, ClassSet> answers;
-
-    bool isSameCluster(std::set<Elem> a, std::set<Elem> b) const;
 
     bool intersectWith(ClassSet &dst, const ClassSet &src);
 
@@ -41,7 +37,7 @@ class ConstraintSolver {
         : system(system), hierarchy(hierarchy) {}
     void solve();
     bool sanityCheck();
-    ClassSet query(NodeTy v);
+    ClassSet query(NodeID v) const;
 };
 
 #endif  // CONSTRAINT_SOLVER_H

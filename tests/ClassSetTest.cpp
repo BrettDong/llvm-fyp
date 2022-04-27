@@ -39,7 +39,7 @@ TEST_CASE("ClassSetTest") {
     CHECK(s.count() == 1);
     CHECK(s.toClasses() == std::set<ClassSymbol>{hashA});
 
-    ClassSet t(&hierarchy);
+    ClassSet t = ClassSet::EmptyClassSet(&hierarchy);
     CHECK(t.count() == 0);
     CHECK(t.toClasses().empty());
 
@@ -82,7 +82,7 @@ TEST_CASE("RandomClassSetTest") {
     }
     hierarchy.clusterClasses();
 
-    ClassSet s(&hierarchy);
+    ClassSet s = ClassSet::EmptyClassSet(&hierarchy);
     std::set<ClassSymbol> elements;
     for (int i = 1; i <= nClasses / 2; i++) {
         auto hash = symbols->hashClassName("Class" + std::to_string(dist(mt)));

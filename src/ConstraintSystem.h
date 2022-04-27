@@ -24,13 +24,9 @@ enum class ConstraintRelation : int { Subset, Superset };
 
 class ConstraintSystem {
    private:
-    using NodeTy = const llvm::Value *;
     using NodeID = int;
-    using Elem = ClassSymbol;
 
     friend class ConstraintSolver;
-    friend class ConstraintSolverV1;
-    friend class ConstraintSolverV2;
 
     struct Constraint {
         NodeID a;
@@ -38,28 +34,27 @@ class ConstraintSystem {
         ConstraintRelation c;
 
         Constraint(NodeID a, NodeID b, ConstraintRelation c) : a(a), b(b), c(c) {}
+
+        bool operator<(const Constraint &rhs) const;
     };
 
-    std::vector<Constraint> constraints;
-    std::map<NodeID, ClassSet> constants;
+    std::set<Constraint> constraints;
+    std::unordered_map<NodeID, ClassSet> constants;
+    NodeID nextConstantId = -1;  // constant nodes are assigned with ID -1, -2, -3, ...
     std::set<NodeID> nodes;
-    std::map<NodeTy, NodeID> idMap;
-    NodeID nextId = 0;
 
-    std::map<NodeID, std::set<NodeID>> forwardEdges;   // A -> B where A is subset of B
-    std::map<NodeID, std::set<NodeID>> backwardEdges;  // A <- B where A is a subset of B
+    std::unordered_map<NodeID, std::set<NodeID>> forwardEdges;   // A -> B where A is subset of B
+    std::unordered_map<NodeID, std::set<NodeID>> backwardEdges;  // A <- B where A is a subset of B
 
-    std::map<NodeID, bool> backwardVisited;
-    std::map<NodeID, bool> forwardVisited;
+    std::unordered_map<NodeID, bool> backwardVisited;
+    std::unordered_map<NodeID, bool> forwardVisited;
 
-    std::optional<NodeTy> lookupNodeID(const NodeID &id);
-
-    std::string visualizeConstraintOperand(const NodeID &id);
+    std::string visualizeConstraintOperand(NodeID id);
 
    public:
-    void addConstraint(NodeTy a, NodeTy b, ConstraintRelation c = ConstraintRelation::Subset);
+    void addConstraint(NodeID a, NodeID b, ConstraintRelation c = ConstraintRelation::Subset);
 
-    void addLiteralConstraint(NodeTy a, const ClassSet &literal,
+    void addLiteralConstraint(NodeID a, const ClassSet &literal,
                               ConstraintRelation c = ConstraintRelation::Subset);
 
     void buildGraph();

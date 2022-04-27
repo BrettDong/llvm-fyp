@@ -16,6 +16,8 @@
 #ifndef FUNCTION_OBJECT_FLOW_H
 #define FUNCTION_OBJECT_FLOW_H
 
+#include <llvm/IR/ModuleSlotTracker.h>
+
 #include "ClassSet.h"
 #include "Common.hpp"
 #include "ConstraintSystem.h"
@@ -31,6 +33,8 @@ class FunctionObjectFlow {
     std::map<std::string, ClassSet> &functionRetTypes;
     const llvm::Function *function = nullptr;
     std::vector<const llvm::Value *> ret;
+
+    std::unique_ptr<llvm::ModuleSlotTracker> moduleSlotTracker;
 
     void handleCallBase(const llvm::Instruction *inst);
 

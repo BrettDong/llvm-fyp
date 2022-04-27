@@ -16,44 +16,28 @@
 
 #include "Utils.h"
 
-void ConstraintSystem::addConstraint(NodeTy a, NodeTy b, ConstraintRelation c) {
-    NodeID idA = 0;
-    if (idMap.count(a) == 0) {
-        idA = nextId++;
-        idMap[a] = idA;
-        nodes.insert(idA);
+bool ConstraintSystem::Constraint::operator<(const Constraint &rhs) const {
+    if (a != rhs.a) {
+        return a < rhs.a;
+    } else if (b != rhs.b) {
+        return b < rhs.b;
     } else {
-        idA = idMap[a];
+        return c < rhs.c;
     }
-    NodeID idB = 0;
-    if (idMap.count(b) == 0) {
-        idB = nextId++;
-        idMap[b] = idB;
-        nodes.insert(idB);
-    } else {
-        idB = idMap[b];
-    }
-    constraints.emplace_back(idA, idB, c);
-    // outs() << "Added variable constraint: ";
-    // printConstraint(constraints.back());
 }
 
-void ConstraintSystem::addLiteralConstraint(NodeTy a, const ClassSet &literal,
+void ConstraintSystem::addConstraint(NodeID a, NodeID b, ConstraintRelation c) {
+    nodes.insert(a);
+    nodes.insert(b);
+    constraints.insert(Constraint(a, b, c));
+}
+
+void ConstraintSystem::addLiteralConstraint(NodeID a, const ClassSet &literal,
                                             ConstraintRelation c) {
-    NodeID idA = 0;
-    if (idMap.count(a) == 0) {
-        idA = nextId++;
-        idMap[a] = idA;
-        nodes.insert(idA);
-    } else {
-        idA = idMap[a];
-    }
-    NodeID literalId = nextId++;
-    nodes.insert(literalId);
+    nodes.insert(a);
+    NodeID literalId = nextConstantId--;
+    constraints.insert(Constraint(a, literalId, c));
     constants.insert({literalId, literal});
-    constraints.emplace_back(idA, literalId, c);
-    // outs() << "Added literal constraint: ";
-    // printConstraint(constraints.back());
 }
 
 void ConstraintSystem::buildGraph() {
@@ -61,33 +45,16 @@ void ConstraintSystem::buildGraph() {
         if (constraint.c == ConstraintRelation::Subset) {
             forwardEdges[constraint.a].insert(constraint.b);
             backwardEdges[constraint.b].insert(constraint.a);
-            /*
-            outs() << constraint.a << " is subset of " << constraint.b << '\n';
-            if (constants.count(constraint.b) > 0) {
-                outs() << "constant " << constraint.b << " is " << list_out(answers[constraint.b])
-                       << '\n';
-            }*/
         } else {
             forwardEdges[constraint.b].insert(constraint.a);
             backwardEdges[constraint.a].insert(constraint.b);
-            // outs() << constraint.b << " is subset of " << constraint.a << '\n';
         }
     }
 }
 
-std::optional<ConstraintSystem::NodeTy> ConstraintSystem::lookupNodeID(const NodeID &id) {
-    for (const auto &[node, nodeID] : idMap) {
-        if (nodeID == id) {
-            return node;
-        }
-    }
-    return std::nullopt;
-};
-
-std::string ConstraintSystem::visualizeConstraintOperand(const ConstraintSystem::NodeID &id) {
-    auto origin = lookupNodeID(id);
-    if (origin.has_value()) {
-        return getInstSeqNum(origin.value());
+std::string ConstraintSystem::visualizeConstraintOperand(const NodeID id) {
+    if (id >= 0) {
+        return "%" + std::to_string(id);
     } else {
         return "{" + list_out(constants.at(id).toClasses()) + "}";
     }
@@ -95,15 +62,11 @@ std::string ConstraintSystem::visualizeConstraintOperand(const ConstraintSystem:
 
 void ConstraintSystem::printConstraint(Constraint constraint) {
     if (constraint.c == ConstraintRelation::Subset) {
-        llvm::outs() << "(" << lookupNodeID(constraint.a).value_or(nullptr) << ") "
-                     << visualizeConstraintOperand(constraint.a) << " <= "
-                     << "(" << lookupNodeID(constraint.b).value_or(nullptr) << ") "
-                     << visualizeConstraintOperand(constraint.b) << "\n";
+        llvm::outs() << visualizeConstraintOperand(constraint.a)
+                     << " <= " << visualizeConstraintOperand(constraint.b) << "\n";
     } else {
-        llvm::outs() << "(" << lookupNodeID(constraint.b).value_or(nullptr) << ") "
-                     << visualizeConstraintOperand(constraint.b) << " <= "
-                     << "(" << lookupNodeID(constraint.a).value_or(nullptr) << ") "
-                     << visualizeConstraintOperand(constraint.a) << "\n";
+        llvm::outs() << visualizeConstraintOperand(constraint.b)
+                     << " <= " << visualizeConstraintOperand(constraint.a) << "\n";
     }
 }
 

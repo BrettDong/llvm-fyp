@@ -61,12 +61,13 @@ inline std::uint64_t eraseRightmostOne(std::uint64_t n) {
 }
 }  // namespace
 
-ClassSet::ClassSet(const ClassHierarchy *classes) : classes(classes), cluster(nullCluster) {
-    bits = 0;
-}
-
-ClassSet::ClassSet(const ClassHierarchy *classes, int cluster) : classes(classes) {
-    setClusterId(cluster);
+ClassSet::ClassSet(const ClassHierarchy *classes, int cluster)
+    : classes(classes), cluster(cluster) {
+    if (cluster != nullCluster) {
+        setClusterId(cluster);
+    } else {
+        bits = 0;
+    }
 }
 
 constexpr int ClassSet::elems() const {

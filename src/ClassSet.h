@@ -39,9 +39,11 @@ class ClassSet {
     void setClusterId(int clusterId);
 
    public:
-    explicit ClassSet(const ClassHierarchy *classes);
-
     explicit ClassSet(const ClassHierarchy *classes, int cluster);
+
+    static ClassSet EmptyClassSet(ClassHierarchy *hierarchy) {
+        return ClassSet(hierarchy, ClassSet::nullCluster);
+    }
 
     ClassSet(const ClassSet &rhs) = default;
 
