@@ -75,33 +75,3 @@ void ConstraintSystem::printConstraints() {
         printConstraint(constraint);
     }
 }
-
-/*
-void ConstraintSystem::run() {
-    nodes = {2, 6, 9, 12, 15, 25, 26, 27};
-    constraints.emplace_back(9, 27, ConstraintRelation::Subset);
-    constraints.emplace_back(15, 27, ConstraintRelation::Subset);
-    constraints.emplace_back(9, 2, ConstraintRelation::Subset);
-    constraints.emplace_back(15, 2, ConstraintRelation::Subset);
-    constraints.emplace_back(9, 6, ConstraintRelation::Subset);
-    constraints.emplace_back(6, 25, ConstraintRelation::Subset);
-    constraints.emplace_back(15, 12, ConstraintRelation::Subset);
-    constraints.emplace_back(12, 26, ConstraintRelation::Subset);
-    constants.insert(25);
-    constants.insert(26);
-    constants.insert(27);
-    answers[25] = {"Circle"};
-    answers[26] = {"Square"};
-    answers[27] = {"Shape", "Rectangle", "Square", "Circle"};
-
-    buildGraph();
-
-    solve();
-
-    for (const NodeID &i : nodes) {
-        if (!answers[i].empty()) {
-            outs() << "Node[" << i << "] = " << list_out(answers[i]) << '\n';
-        }
-    }
-}
-*/

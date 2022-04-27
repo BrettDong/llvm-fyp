@@ -25,6 +25,7 @@ set(TEST_SOURCE
         tests/ClassHierarchyTest.cpp
         tests/ClassSetTest.cpp
         tests/ClassSymbolTest.cpp
+        tests/ConstraintsTest.cpp
         tests/TestMain.cpp
         )
 
