@@ -36,6 +36,10 @@ class FunctionObjectFlow {
 
     std::unique_ptr<llvm::ModuleSlotTracker> moduleSlotTracker;
 
+    std::unordered_map<const llvm::Value *, int> nodeID;
+    int nextNodeID = 1;
+    int getNodeID(const llvm::Value *v);
+
     void handleCallBase(const llvm::Instruction *inst);
 
    public:

@@ -23,6 +23,15 @@
 using namespace std;
 using namespace llvm;
 
+int FunctionObjectFlow::getNodeID(const llvm::Value *v) {
+    if (nodeID.count(v) == 0) {
+        int id = nextNodeID++;
+        nodeID[v] = id;
+        return id;
+    }
+    return nodeID[v];
+}
+
 void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
     auto callInst = dyn_cast<CallBase>(inst);
     auto callee = callInst->getCalledFunction();
@@ -30,7 +39,7 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
         return;
     }
     if (functionRetTypes.count(callee->getName().str()) > 0) {
-        constraintSystem.addLiteralConstraint(moduleSlotTracker->getLocalSlot(inst),
+        constraintSystem.addLiteralConstraint(getNodeID(inst),
                                               functionRetTypes.at(callee->getName().str()),
                                               ConstraintRelation::Superset);
     } else {
@@ -45,8 +54,7 @@ void FunctionObjectFlow::handleCallBase(const Instruction *inst) {
         }
         if (nominalTy && hierarchy->isPolymorphicPointerType(nominalTy)) {
             auto hash = symbols->hashClassName(nominalTy->getPointerElementType()->getStructName());
-            constraintSystem.addLiteralConstraint(moduleSlotTracker->getLocalSlot(inst),
-                                                  hierarchy->query(hash),
+            constraintSystem.addLiteralConstraint(getNodeID(inst), hierarchy->query(hash),
                                                   ConstraintRelation::Superset);
         }
     }
@@ -59,8 +67,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
         if (hierarchy->isPolymorphicPointerType(v->getType())) {
             auto className = v->getType()->getPointerElementType()->getStructName();
             auto hash = symbols->hashClassName(className);
-            constraintSystem.addLiteralConstraint(moduleSlotTracker->getLocalSlot(v),
-                                                  hierarchy->query(hash));
+            constraintSystem.addLiteralConstraint(getNodeID(v), hierarchy->query(hash));
         }
     };
 
@@ -90,8 +97,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                             if (hierarchy->isPolymorphicClass(className)) {
                                 auto hash = symbols->hashClassName(className);
                                 auto classSet = hierarchy->query(hash);
-                                constraintSystem.addLiteralConstraint(
-                                    moduleSlotTracker->getLocalSlot(&inst), classSet);
+                                constraintSystem.addLiteralConstraint(getNodeID(&inst), classSet);
                             }
                         }
                     } else if (inst.getType()->isStructTy()) {
@@ -99,17 +105,15 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                         if (hierarchy->isPolymorphicClass(className)) {
                             auto hash = symbols->hashClassName(className);
                             auto classSet = hierarchy->query(hash);
-                            constraintSystem.addLiteralConstraint(
-                                moduleSlotTracker->getLocalSlot(&inst), classSet);
+                            constraintSystem.addLiteralConstraint(getNodeID(&inst), classSet);
                         }
                     }
                     break;
                 }
                 case Instruction::Load: {
                     if (inst.getType()->isPointerTy()) {
-                        constraintSystem.addConstraint(
-                            moduleSlotTracker->getLocalSlot(inst.getOperand(0)),
-                            moduleSlotTracker->getLocalSlot(&inst));
+                        constraintSystem.addConstraint(getNodeID(inst.getOperand(0)),
+                                                       getNodeID(&inst));
                         // addEdge(inst.getOperand(0), &inst, ConstraintType::Widen);
                         // outs() << "LOAD " << &inst << " <- " << inst.getOperand(0) << '\n';
                     }
@@ -119,9 +123,8 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                 case Instruction::Store: {
                     if (inst.getOperand(0)->getType()->isPointerTy() &&
                         !isa<ConstantPointerNull>(inst.getOperand(0))) {
-                        constraintSystem.addConstraint(
-                            moduleSlotTracker->getLocalSlot(inst.getOperand(0)),
-                            moduleSlotTracker->getLocalSlot(inst.getOperand(1)));
+                        constraintSystem.addConstraint(getNodeID(inst.getOperand(0)),
+                                                       getNodeID(inst.getOperand(1)));
                         // addEdge(inst.getOperand(0), inst.getOperand(1), ConstraintType::Widen);
                         // outs() << "STORE " << inst.getOperand(1) << " <- " << inst.getOperand(0)
                         // << '\n';
@@ -137,9 +140,8 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                         if (dstType->isStructTy()) {
                             constrainNominalType(&inst);
                             if (srcType->isStructTy()) {
-                                constraintSystem.addConstraint(
-                                    moduleSlotTracker->getLocalSlot(&inst),
-                                    moduleSlotTracker->getLocalSlot(inst.getOperand(0)));
+                                constraintSystem.addConstraint(getNodeID(&inst),
+                                                               getNodeID(inst.getOperand(0)));
                             }
                         }
                     }
@@ -168,9 +170,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
                         for (unsigned int i = 0; i < phiInst->getNumIncomingValues(); i++) {
                             const Value *v = phiInst->getIncomingValue(i);
                             if (hierarchy->isPolymorphicPointerType(v->getType())) {
-                                constraintSystem.addConstraint(
-                                    moduleSlotTracker->getLocalSlot(v),
-                                    moduleSlotTracker->getLocalSlot(&inst));
+                                constraintSystem.addConstraint(getNodeID(v), getNodeID(&inst));
                             }
                         }
                     }
@@ -189,7 +189,7 @@ void FunctionObjectFlow::analyzeFunction(const Function *f) {
 ClassSet FunctionObjectFlow::traverseBack(const Value *val) {
     ConstraintSolver solver(&constraintSystem, hierarchy);
     solver.solve();
-    return solver.query(moduleSlotTracker->getLocalSlot(val));
+    return solver.query(getNodeID(val));
 }
 
 ClassSet FunctionObjectFlow::queryRetType() {
@@ -197,7 +197,7 @@ ClassSet FunctionObjectFlow::queryRetType() {
     solver.solve();
     ClassSet ans = ClassSet::EmptyClassSet(hierarchy);
     for (const Value *r : ret) {
-        ans.unionWith(solver.query(moduleSlotTracker->getLocalSlot(r)));
+        ans.unionWith(solver.query(getNodeID(r)));
     }
     return ans;
 }
