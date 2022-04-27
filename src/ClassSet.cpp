@@ -144,6 +144,9 @@ bool ClassSet::intersectWith(const ClassSet &rhs) {
         *this = rhs;
         return true;
     }
+    if (cluster != rhs.cluster) {
+        throw IncompatibleClusterError();
+    }
     bool changed = false;
     for (int i = 0; i < elems(); i++) {
         ElemTy bit_and = storage[i] & rhs.storage[i];
@@ -162,6 +165,9 @@ bool ClassSet::unionWith(const ClassSet &rhs) {
     if (cluster == nullCluster) {
         *this = rhs;
         return true;
+    }
+    if (cluster != rhs.cluster) {
+        throw IncompatibleClusterError();
     }
     bool changed = false;
     for (int i = 0; i < elems(); i++) {

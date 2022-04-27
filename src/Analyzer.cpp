@@ -168,43 +168,51 @@ void Analyzer::analyzeVirtCall(const CallBase *callInst) {
         obj = callInst->getOperand(0);
     }
     FunctionObjectFlow flow(hierarchy.get(), classSymbols.get(), functionRetTypes);
-    flow.analyzeFunction(callInst->getParent()->getParent());
-    ClassSet OFATypes = flow.traverseBack(obj);
-    set<FunctionSymbol> OFA;
-    if (OFATypes.count() == 0) {
-        outs() << "Error: OFA reports null set in "
-               << demangle(callInst->getFunction()->getName().str()) << " : " << *callInst << '\n';
-        outs() << "Class hierarchy analysis (" << CHA.size() << "): ";
-        for (const auto fnHash : CHA) {
-            outs() << "\"" << demangle(functionSymbols->getFunctionName(fnHash)) << "\" ";
-        }
-        outs() << '\n';
-        outs() << '\n';
-        ++totalNonTrivialCallSites;
-        totalCHATargets += CHA.size();
-        totalOFATargets += CHA.size();
-        return;
-    } else {
-        OFA = collectVirtualMethods(OFATypes.toClasses(), index.value());
-        ++totalNonTrivialCallSites;
-        totalCHATargets += CHA.size();
-        totalOFATargets += OFA.size();
-        return;
-        if (CHA.size() > OFA.size()) {
-            outs() << "In function " << demangle(callInst->getFunction()->getName().str()) << "\n";
-            outs() << "At virtual call " << *callInst << "\n";
+    try {
+        flow.analyzeFunction(callInst->getParent()->getParent());
+        ClassSet OFATypes = flow.traverseBack(obj);
+
+        set<FunctionSymbol> OFA;
+        if (OFATypes.count() == 0) {
+            outs() << "Error: OFA reports null set in "
+                   << demangle(callInst->getFunction()->getName().str()) << " : " << *callInst
+                   << '\n';
             outs() << "Class hierarchy analysis (" << CHA.size() << "): ";
             for (const auto fnHash : CHA) {
                 outs() << "\"" << demangle(functionSymbols->getFunctionName(fnHash)) << "\" ";
             }
             outs() << '\n';
-            outs() << "Object-flow analysis (" << OFA.size() << "): ";
-            for (const auto fnHash : OFA) {
-                outs() << "\"" << demangle(functionSymbols->getFunctionName(fnHash)) << "\" ";
+            outs() << '\n';
+            ++totalNonTrivialCallSites;
+            totalCHATargets += CHA.size();
+            totalOFATargets += CHA.size();
+            return;
+        } else {
+            OFA = collectVirtualMethods(OFATypes.toClasses(), index.value());
+            ++totalNonTrivialCallSites;
+            totalCHATargets += CHA.size();
+            totalOFATargets += OFA.size();
+            return;
+            if (CHA.size() > OFA.size()) {
+                outs() << "In function " << demangle(callInst->getFunction()->getName().str())
+                       << "\n";
+                outs() << "At virtual call " << *callInst << "\n";
+                outs() << "Class hierarchy analysis (" << CHA.size() << "): ";
+                for (const auto fnHash : CHA) {
+                    outs() << "\"" << demangle(functionSymbols->getFunctionName(fnHash)) << "\" ";
+                }
+                outs() << '\n';
+                outs() << "Object-flow analysis (" << OFA.size() << "): ";
+                for (const auto fnHash : OFA) {
+                    outs() << "\"" << demangle(functionSymbols->getFunctionName(fnHash)) << "\" ";
+                }
+                outs() << '\n';
+                outs() << '\n';
             }
-            outs() << '\n';
-            outs() << '\n';
         }
+    } catch (IncompatibleClusterError &e) {
+        outs() << e.what() << " in object-flow analysis in "
+               << callInst->getParent()->getParent()->getName() << '\n';
     }
 }
 
@@ -316,14 +324,18 @@ void Analyzer::analyze(vector<string> files) {
                 retType = f.getReturnType();
             }
             if (retType && hierarchy->isPolymorphicPointerType(retType)) {
-                FunctionObjectFlow flow(hierarchy.get(), classSymbols.get(), functionRetTypes);
-                flow.analyzeFunction(&f);
-                ClassSet OFA = flow.queryRetType();
-                auto className = retType->getPointerElementType()->getStructName();
-                auto hash = classSymbols->hashClassName(className);
-                ClassSet CHA = hierarchy->query(hash);
-                if (!OFA.empty() && OFA.count() < CHA.count()) {
-                    functionRetTypes.insert({f.getName().str(), OFA});
+                try {
+                    FunctionObjectFlow flow(hierarchy.get(), classSymbols.get(), functionRetTypes);
+                    flow.analyzeFunction(&f);
+                    ClassSet OFA = flow.queryRetType();
+                    auto className = retType->getPointerElementType()->getStructName();
+                    auto hash = classSymbols->hashClassName(className);
+                    ClassSet CHA = hierarchy->query(hash);
+                    if (!OFA.empty() && OFA.count() < CHA.count()) {
+                        functionRetTypes.insert({f.getName().str(), OFA});
+                    }
+                } catch (IncompatibleClusterError &e) {
+                    outs() << e.what() << " in return type analysis in " << f.getName() << '\n';
                 }
             }
         }

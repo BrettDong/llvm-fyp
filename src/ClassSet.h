@@ -21,6 +21,12 @@
 
 class ClassHierarchy;
 
+class IncompatibleClusterError : public std::exception {
+   public:
+    ~IncompatibleClusterError() override = default;
+    const char *what() const noexcept override { return "Incompatible cluster error"; }
+};
+
 class ClassSet {
    private:
     using ElemTy = std::uint64_t;
