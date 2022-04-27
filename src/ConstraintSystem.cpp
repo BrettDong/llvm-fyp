@@ -36,6 +36,7 @@ void ConstraintSystem::addLiteralConstraint(NodeID a, const ClassSet &literal,
                                             ConstraintRelation c) {
     nodes.insert(a);
     NodeID literalId = nextConstantId--;
+    nodes.insert(literalId);
     constraints.insert(Constraint(a, literalId, c));
     constants.insert({literalId, literal});
 }

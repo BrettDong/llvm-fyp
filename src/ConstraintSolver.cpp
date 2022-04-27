@@ -134,6 +134,9 @@ void ConstraintSolver::solve() {
         if (unionOf.empty()) {
             continue;
         }
+        if (answers.count(cur) == 0) {
+            answers.insert({cur, ClassSet::EmptyClassSet(hierarchy)});
+        }
         bool changed = intersectWith(answers.at(cur), unionOf);
         if (changed) {
             for (const NodeID &next : system->forwardEdges[cur]) {
